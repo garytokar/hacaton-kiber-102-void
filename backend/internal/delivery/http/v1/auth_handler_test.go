@@ -22,10 +22,13 @@ import (
 
 // mockUserRepo — in-memory реализация domain.UserRepository для unit-тестов
 type mockUserRepo struct {
-	mu          sync.RWMutex
-	usersByID   map[uuid.UUID]*domain.User
-	usersByMail map[string]*domain.User
-	usersByTg   map[int64]*domain.User
+	mu           sync.RWMutex
+	usersByID    map[uuid.UUID]*domain.User
+	usersByMail  map[string]*domain.User
+	usersByTg    map[int64]*domain.User
+	vocabEntries []domain.LeaderboardVocabularyEntry
+	allBadges    []domain.Badge
+	userBadges   map[uuid.UUID][]domain.UserBadge
 }
 
 func newMockUserRepo() *mockUserRepo {
@@ -33,6 +36,7 @@ func newMockUserRepo() *mockUserRepo {
 		usersByID:   make(map[uuid.UUID]*domain.User),
 		usersByMail: make(map[string]*domain.User),
 		usersByTg:   make(map[int64]*domain.User),
+		userBadges:  make(map[uuid.UUID][]domain.UserBadge),
 	}
 }
 
@@ -45,6 +49,9 @@ func (m *mockUserRepo) Create(ctx context.Context, u *domain.User) error {
 	}
 	if u.CreatedAt.IsZero() {
 		u.CreatedAt = time.Now()
+	}
+	if u.PreferredLangPair == "" {
+		u.PreferredLangPair = "ba-ru"
 	}
 	m.usersByID[u.ID] = u
 	if u.Email != nil {
@@ -116,6 +123,57 @@ func (m *mockUserRepo) GetTopUsers(ctx context.Context, limit int) ([]domain.Lea
 	return list, nil
 }
 
+func (m *mockUserRepo) GetTopUsersByPeriod(ctx context.Context, period string, limit int) ([]domain.LeaderboardUserEntry, error) {
+	return m.GetTopUsers(ctx, limit)
+}
+
+func (m *mockUserRepo) GetVocabularyLeaderboard(ctx context.Context, limit int) ([]domain.LeaderboardVocabularyEntry, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.vocabEntries, nil
+}
+
+func (m *mockUserRepo) UpdatePreferredLangPair(ctx context.Context, userID uuid.UUID, langPair string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if u, ok := m.usersByID[userID]; ok {
+		u.PreferredLangPair = langPair
+		return nil
+	}
+	return domain.ErrUserNotFound
+}
+
+func (m *mockUserRepo) UpdateUser(ctx context.Context, u *domain.User) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.usersByID[u.ID] = u
+	return nil
+}
+
+func (m *mockUserRepo) GetAllBadges(ctx context.Context) ([]domain.Badge, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.allBadges, nil
+}
+
+func (m *mockUserRepo) GetUserBadges(ctx context.Context, userID uuid.UUID) ([]domain.UserBadge, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.userBadges != nil {
+		return m.userBadges[userID], nil
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepo) AwardBadge(ctx context.Context, userID, badgeID uuid.UUID) error {
+	return nil
+}
+
+func (m *mockUserRepo) GetBadgeByCode(ctx context.Context, code string) (*domain.Badge, error) {
+	return nil, nil
+}
+
+
 type mockRedisCache struct {
 	incrementedXP int
 }
@@ -172,6 +230,41 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 	}
 	if resp.ID == uuid.Nil {
 		t.Errorf("ID пользователя не должен быть пустым")
+	}
+	if resp.PreferredLangPair != "ba-ru" {
+		t.Errorf("ожидалась языковая пара по умолчанию 'ba-ru', получено '%s'", resp.PreferredLangPair)
+	}
+}
+
+func TestAuthHandler_Register_WithCustomLangPair(t *testing.T) {
+	handler, _, _ := setupTestHandler()
+
+	payload := map[string]string{
+		"full_name":           "Айдар",
+		"email":               "aydar@example.com",
+		"password":            "strongpass123",
+		"role":                "student",
+		"preferred_lang_pair": "ba-kk",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Register(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("ожидался статус 201 Created, получен %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp domain.User
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("ошибка парсинга json: %v", err)
+	}
+
+	if resp.PreferredLangPair != "ba-kk" {
+		t.Errorf("ожидалась выбранная языковая пара 'ba-kk', получено '%s'", resp.PreferredLangPair)
 	}
 }
 
@@ -358,3 +451,126 @@ func TestAuthHandler_Me_Unauthorized(t *testing.T) {
 		t.Fatalf("ожидался статус 401 Unauthorized без токена, получен %d", rec.Code)
 	}
 }
+
+func TestAuthHandler_UpdateLangPair_Success(t *testing.T) {
+	handler, repo, _ := setupTestHandler()
+
+	userID := uuid.New()
+	email := "langtest@example.com"
+	_ = repo.Create(context.Background(), &domain.User{
+		ID:                userID,
+		Email:             &email,
+		FullName:          "Пользователь Языков",
+		PreferredLangPair: "ba-ru",
+	})
+
+	// PUT /users/me/lang-pair с новой парой "ba-kk"
+	payload := map[string]string{
+		"preferred_lang_pair": "ba-kk",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/users/me/lang-pair", bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	handler.UpdateLangPair(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ожидался статус 200 OK при обновлении языковой пары, получен %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		Success           bool   `json:"success"`
+		PreferredLangPair string `json:"preferred_lang_pair"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("ошибка парсинга json: %v", err)
+	}
+
+	if !resp.Success || resp.PreferredLangPair != "ba-kk" {
+		t.Errorf("ожидалась языковая пара ba-kk, получено: %+v", resp)
+	}
+
+	// Проверяем через GET /users/me/lang-pair
+	reqGet := httptest.NewRequest(http.MethodGet, "/api/v1/users/me/lang-pair", nil)
+	reqGet = reqGet.WithContext(ctx)
+	recGet := httptest.NewRecorder()
+	handler.GetLangPair(recGet, reqGet)
+
+	if recGet.Code != http.StatusOK {
+		t.Fatalf("ожидался статус 200 OK при чтении языковой пары, получен %d", recGet.Code)
+	}
+}
+
+func TestAuthHandler_UpdateLangPair_Invalid(t *testing.T) {
+	handler, repo, _ := setupTestHandler()
+
+	userID := uuid.New()
+	email := "invalidlang@example.com"
+	_ = repo.Create(context.Background(), &domain.User{
+		ID:       userID,
+		Email:    &email,
+		FullName: "Пользователь",
+	})
+
+	payload := map[string]string{
+		"preferred_lang_pair": "unsupported-pair",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/users/me/lang-pair", bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	handler.UpdateLangPair(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("ожидался статус 400 Bad Request при неподдерживаемой языковой паре, получен %d", rec.Code)
+	}
+}
+
+func TestAuthHandler_UpdateMe_LangPair(t *testing.T) {
+	handler, repo, _ := setupTestHandler()
+
+	userID := uuid.New()
+	email := "patchme@example.com"
+	_ = repo.Create(context.Background(), &domain.User{
+		ID:                userID,
+		Email:             &email,
+		FullName:          "Старое Имя",
+		PreferredLangPair: "ba-ru",
+	})
+
+	payload := map[string]string{
+		"full_name":           "Новое Имя",
+		"preferred_lang_pair": "ba-en",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/users/me", bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	handler.UpdateMe(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ожидался статус 200 OK при обновлении профиля, получен %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		FullName          string `json:"full_name"`
+		PreferredLangPair string `json:"preferred_lang_pair"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("ошибка json: %v", err)
+	}
+
+	if resp.FullName != "Новое Имя" || resp.PreferredLangPair != "ba-en" {
+		t.Errorf("не обновились данные профиля: %+v", resp)
+	}
+}
+

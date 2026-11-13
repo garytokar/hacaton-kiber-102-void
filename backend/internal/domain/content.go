@@ -25,7 +25,23 @@ const (
 	StatusPending      TranslationStatus = "pending"       // В процессе сбора ответов пользователей
 	StatusConfirmed    TranslationStatus = "confirmed"     // Консенсус достигнут (3+ согласных голоса)
 	StatusExpertReview TranslationStatus = "expert_review" // Спорный случай, передан экспертам УФИЦ РАН
+	StatusRejected     TranslationStatus = "rejected"      // Отклонен экспертом (спам/некорректный)
 )
+
+// ExpertReviewItem спорный или эскалированный случай перевода для экспертизы УФИЦ РАН
+type ExpertReviewItem struct {
+	ID                     uuid.UUID `json:"id"`
+	FragmentID             uuid.UUID `json:"fragment_id"`
+	LangPair               string    `json:"lang_pair"`
+	TextBa                 string    `json:"text_ba"`
+	SourceTitle            string    `json:"source_title"`
+	InitialAutoTranslation string    `json:"initial_auto_translation"`
+	SuggestedTranslation   string    `json:"suggested_translation"`
+	Status                 string    `json:"status"`
+	ConfirmedCount         int       `json:"confirmed_count"`
+	VotesCount             int       `json:"votes_count"`
+	CreatedAt              time.Time `json:"created_at"`
+}
 
 // Source описывает оригинальный документ или аудиофайл.
 type Source struct {
@@ -64,7 +80,7 @@ type FragmentTranslation struct {
 	ConfirmedTranslation   *string           `json:"confirmed_translation,omitempty"` // Финальный утвержденный вариант
 	ConsensusScore         float64           `json:"consensus_score"`           // Метрика согласованности (0.0 - 1.0)
 	ConfirmedCount         int               `json:"confirmed_count"`           // Число подтвердивших пользователей
-	Status                 TranslationStatus `json:"status"`                    // pending, confirmed, expert_review
+	Status                 TranslationStatus `json:"status"`                    // pending, confirmed, expert_review, rejected
 	CreatedAt              time.Time         `json:"created_at"`
 	UpdatedAt              time.Time         `json:"updated_at"`
 }
@@ -73,7 +89,12 @@ type FragmentTranslation struct {
 type ContentRepository interface {
 	GetDailyFragmentsForUser(ctx context.Context, userID uuid.UUID, langPair string, limit int) ([]TaskDTO, error)
 	GetTranslationByID(ctx context.Context, id uuid.UUID) (*FragmentTranslation, error)
+	GetTranslationByFragmentAndLang(ctx context.Context, fragmentID uuid.UUID, langPair string) (*FragmentTranslation, error)
 	UpdateTranslationStatus(ctx context.Context, id uuid.UUID, status TranslationStatus, confirmedText string, score float64, count int) error
 	GetFragmentByID(ctx context.Context, id uuid.UUID) (*Fragment, error)
 	GetConfirmedTranslations(ctx context.Context, langPair string) ([]ConfirmedTranslation, error)
+	GetReviewQueue(ctx context.Context) ([]ExpertReviewItem, error)
+	ApproveExpertReview(ctx context.Context, id uuid.UUID, approvedText string) (*ConfirmedTranslation, error)
+	RejectExpertReview(ctx context.Context, id uuid.UUID) error
 }
+

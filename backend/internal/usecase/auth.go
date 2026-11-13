@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"bashkir-backend/internal/config"
@@ -39,10 +41,11 @@ func (uc *AuthUseCase) RegisterEmail(ctx context.Context, fullName, email, passw
 		ID:             uuid.New(),
 		Email:          &email,
 		HashedPassword: &hash,
-		FullName:       fullName,
-		Role:           role,
-		SchoolID:       schoolID,
-		ClassID:        classID,
+		FullName:          fullName,
+		Role:              role,
+		PreferredLangPair: "ba-ru",
+		SchoolID:          schoolID,
+		ClassID:           classID,
 		CurrentStreak:  0,
 		MaxStreak:      0,
 		TotalXP:        0,
@@ -53,6 +56,19 @@ func (uc *AuthUseCase) RegisterEmail(ctx context.Context, fullName, email, passw
 		return nil, err
 	}
 	return user, nil
+}
+
+// GenerateTokenForUser выпускает JWT-токен для пользователя
+func (uc *AuthUseCase) GenerateTokenForUser(user *domain.User) (*domain.AuthTokenResponse, error) {
+	token, exp, err := jwt.GenerateToken(user.ID, string(user.Role), uc.cfg.JWTSecret, uc.cfg.JWTTTL)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.AuthTokenResponse{
+		AccessToken: token,
+		TokenType:   "bearer",
+		ExpiresAt:   exp,
+	}, nil
 }
 
 // LoginEmail вход по email/паролю
@@ -66,16 +82,12 @@ func (uc *AuthUseCase) LoginEmail(ctx context.Context, email, password string) (
 		return nil, nil, domain.ErrInvalidCredentials
 	}
 
-	token, exp, err := jwt.GenerateToken(user.ID, string(user.Role), uc.cfg.JWTSecret, uc.cfg.JWTTTL)
+	tokenResp, err := uc.GenerateTokenForUser(user)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return &domain.AuthTokenResponse{
-		AccessToken: token,
-		TokenType:   "bearer",
-		ExpiresAt:   exp,
-	}, user, nil
+	return tokenResp, user, nil
 }
 
 // AuthTelegramWebApp бесшовная авторизация из Telegram Mini App
@@ -90,16 +102,12 @@ func (uc *AuthUseCase) AuthTelegramWebApp(ctx context.Context, initDataRaw strin
 		return nil, nil, err
 	}
 
-	token, exp, err := jwt.GenerateToken(user.ID, string(user.Role), uc.cfg.JWTSecret, uc.cfg.JWTTTL)
+	tokenResp, err := uc.GenerateTokenForUser(user)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return &domain.AuthTokenResponse{
-		AccessToken: token,
-		TokenType:   "bearer",
-		ExpiresAt:   exp,
-	}, user, nil
+	return tokenResp, user, nil
 }
 
 // GetOrCreateTgUser находит или создает пользователя по Telegram ID
@@ -123,15 +131,16 @@ func (uc *AuthUseCase) GetOrCreateTgUser(ctx context.Context, tgID int64, userna
 	}
 
 	newUser := &domain.User{
-		ID:            uuid.New(),
-		TgID:          &tgID,
-		TgUsername:    uname,
-		FullName:      name,
-		Role:          domain.RoleStudent,
-		CurrentStreak: 0,
-		MaxStreak:     0,
-		TotalXP:       0,
-		CreatedAt:     time.Now(),
+		ID:                uuid.New(),
+		TgID:              &tgID,
+		TgUsername:        uname,
+		FullName:          name,
+		Role:              domain.RoleStudent,
+		PreferredLangPair: "ba-ru",
+		CurrentStreak:     0,
+		MaxStreak:         0,
+		TotalXP:           0,
+		CreatedAt:         time.Now(),
 	}
 
 	if err := uc.userRepo.Create(ctx, newUser); err != nil {
@@ -139,3 +148,13 @@ func (uc *AuthUseCase) GetOrCreateTgUser(ctx context.Context, tgID int64, userna
 	}
 	return newUser, nil
 }
+
+// UpdatePreferredLangPair обновляет выбранную языковую пару пользователя
+func (uc *AuthUseCase) UpdatePreferredLangPair(ctx context.Context, userID uuid.UUID, langPair string) error {
+	langPair = strings.ToLower(strings.TrimSpace(langPair))
+	if langPair != "ba-ru" && langPair != "ba-kk" && langPair != "ba-en" {
+		return errors.New("неподдерживаемая языковая пара. Доступны: ba-ru, ba-kk, ba-en")
+	}
+	return uc.userRepo.UpdatePreferredLangPair(ctx, userID, langPair)
+}
+

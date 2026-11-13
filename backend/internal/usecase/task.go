@@ -2,6 +2,9 @@ package usecase
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -37,6 +40,11 @@ func NewTaskUseCase(
 
 // GetDailyTasks возвращает 5 ежедневных карточек для тренировки
 func (uc *TaskUseCase) GetDailyTasks(ctx context.Context, userID uuid.UUID, langPair string) (*domain.DailyTasksResponse, error) {
+	if langPair == "" && userID != uuid.Nil && uc.userRepo != nil {
+		if u, err := uc.userRepo.FindByID(ctx, userID); err == nil && u != nil && u.PreferredLangPair != "" {
+			langPair = u.PreferredLangPair
+		}
+	}
 	if langPair == "" {
 		langPair = "ba-ru"
 	}
@@ -130,9 +138,28 @@ func (uc *TaskUseCase) SubmitAnswer(ctx context.Context, req domain.SubmitAnswer
 		return nil, err
 	}
 
-	// 7. Запускаем проверку консенсуса в фоне (горутина)
+	// 8. Запускаем проверку консенсуса в фоне (горутина) с защитой от паники
 	go func(translationID uuid.UUID) {
-		_ = uc.consensusUC.ProcessConsensus(context.Background(), translationID)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("consensus background task panicked",
+					"translation_id", translationID.String(),
+					"panic", fmt.Sprint(r),
+					"stack", string(debug.Stack()),
+				)
+			}
+		}()
+
+		if uc.consensusUC == nil {
+			return
+		}
+
+		if err := uc.consensusUC.ProcessConsensus(context.Background(), translationID); err != nil {
+			slog.Error("consensus background task failed",
+				"translation_id", translationID.String(),
+				"error", err,
+			)
+		}
 	}(req.FragmentTranslationID)
 
 	return &domain.SubmitResultDTO{
@@ -142,4 +169,10 @@ func (uc *TaskUseCase) SubmitAnswer(ctx context.Context, req domain.SubmitAnswer
 		IsHoneypotCaught: isHoneypotCaught,
 		IsDailyCompleted: reward.IsDailyCompleted,
 	}, nil
+}
+
+
+// GetTranslationByFragment возвращает запись автоперевода по ID фрагмента и языковой паре
+func (uc *TaskUseCase) GetTranslationByFragment(ctx context.Context, fragmentID uuid.UUID, langPair string) (*domain.FragmentTranslation, error) {
+	return uc.contentRepo.GetTranslationByFragmentAndLang(ctx, fragmentID, langPair)
 }

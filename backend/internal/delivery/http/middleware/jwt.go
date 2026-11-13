@@ -60,3 +60,24 @@ func GetUserRole(ctx context.Context) string {
 	}
 	return val
 }
+
+// RequireRoles проверяет, что текущий аутентифицированный пользователь обладает одной из разрешенных ролей.
+func RequireRoles(roles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userRole := GetUserRole(r.Context())
+			if userRole == "" {
+				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
+			for _, rRole := range roles {
+				if strings.EqualFold(userRole, rRole) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			http.Error(w, `{"error":"forbidden: insufficient permissions"}`, http.StatusForbidden)
+		})
+	}
+}
+

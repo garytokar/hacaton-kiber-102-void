@@ -18,11 +18,13 @@ import (
 )
 
 type mockContentRepoForTaskH struct {
-	tasks []domain.TaskDTO
-	ft    *domain.FragmentTranslation
+	tasks    []domain.TaskDTO
+	ft       *domain.FragmentTranslation
+	lastLang string
 }
 
 func (m *mockContentRepoForTaskH) GetDailyFragmentsForUser(ctx context.Context, userID uuid.UUID, langPair string, limit int) ([]domain.TaskDTO, error) {
+	m.lastLang = langPair
 	return m.tasks, nil
 }
 func (m *mockContentRepoForTaskH) GetTranslationByID(ctx context.Context, id uuid.UUID) (*domain.FragmentTranslation, error) {
@@ -40,6 +42,21 @@ func (m *mockContentRepoForTaskH) GetFragmentByID(ctx context.Context, id uuid.U
 func (m *mockContentRepoForTaskH) GetConfirmedTranslations(ctx context.Context, langPair string) ([]domain.ConfirmedTranslation, error) {
 	return nil, nil
 }
+func (m *mockContentRepoForTaskH) GetReviewQueue(ctx context.Context) ([]domain.ExpertReviewItem, error) {
+	return nil, nil
+}
+func (m *mockContentRepoForTaskH) ApproveExpertReview(ctx context.Context, id uuid.UUID, approvedText string) (*domain.ConfirmedTranslation, error) {
+	return nil, nil
+}
+func (m *mockContentRepoForTaskH) RejectExpertReview(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *mockContentRepoForTaskH) GetTranslationByFragmentAndLang(ctx context.Context, fragmentID uuid.UUID, langPair string) (*domain.FragmentTranslation, error) {
+	if m.ft != nil && m.ft.FragmentID == fragmentID && (langPair == "" || m.ft.LangPair == langPair) {
+		return m.ft, nil
+	}
+	return nil, domain.ErrFragmentNotFound
+}
 
 type mockSubRepoForTaskH struct {
 	submitted map[uuid.UUID]bool
@@ -49,9 +66,16 @@ func (m *mockSubRepoForTaskH) HasUserSubmitted(ctx context.Context, userID, ftID
 	return m.submitted[ftID], nil
 }
 func (m *mockSubRepoForTaskH) CreateSubmission(ctx context.Context, sub *domain.UserSubmission) error {
+	if m.submitted == nil {
+		m.submitted = make(map[uuid.UUID]bool)
+	}
+	m.submitted[sub.FragmentTranslationID] = true
 	return nil
 }
 func (m *mockSubRepoForTaskH) CountTodaySubmissions(ctx context.Context, userID uuid.UUID) (int, error) {
+	return 1, nil
+}
+func (m *mockSubRepoForTaskH) CountUserSubmissions(ctx context.Context, userID uuid.UUID) (int, error) {
 	return 1, nil
 }
 func (m *mockSubRepoForTaskH) GetSubmissionsGroupedByText(ctx context.Context, ftID uuid.UUID) ([]domain.SubmissionGroup, int, error) {
@@ -61,7 +85,7 @@ func (m *mockSubRepoForTaskH) SaveConfirmedTranslation(ctx context.Context, ct *
 	return nil
 }
 
-func setupTaskHandler(tasks []domain.TaskDTO, ft *domain.FragmentTranslation, user *domain.User) (*v1.TaskHandler, *mockSubRepoForTaskH) {
+func setupTaskHandler(tasks []domain.TaskDTO, ft *domain.FragmentTranslation, user *domain.User) (*v1.TaskHandler, *mockSubRepoForTaskH, *mockContentRepoForTaskH) {
 	contentRepo := &mockContentRepoForTaskH{tasks: tasks, ft: ft}
 	subRepo := &mockSubRepoForTaskH{submitted: make(map[uuid.UUID]bool)}
 	userRepo := newMockUserRepo()
@@ -79,7 +103,7 @@ func setupTaskHandler(tasks []domain.TaskDTO, ft *domain.FragmentTranslation, us
 	taskUC := usecase.NewTaskUseCase(contentRepo, subRepo, userRepo, gamifyUC, consensusUC)
 
 	handler := v1.NewTaskHandler(taskUC)
-	return handler, subRepo
+	return handler, subRepo, contentRepo
 }
 
 func TestTaskHandler_GetDailyTasks_Authorized(t *testing.T) {
@@ -92,7 +116,7 @@ func TestTaskHandler_GetDailyTasks_Authorized(t *testing.T) {
 		},
 	}
 
-	handler, _ := setupTaskHandler(tasks, nil, &domain.User{ID: userID})
+	handler, _, _ := setupTaskHandler(tasks, nil, &domain.User{ID: userID})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/daily?lang_pair=ba-ru", nil)
 	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
@@ -118,8 +142,42 @@ func TestTaskHandler_GetDailyTasks_Authorized(t *testing.T) {
 	}
 }
 
+func TestTaskHandler_GetDailyTasks_FallbackToUserPreferredLangPair(t *testing.T) {
+	userID := uuid.New()
+	tasks := []domain.TaskDTO{
+		{
+			FragmentTranslationID: uuid.New(),
+			TextBa:                "Алма ағасынан алыҫ төшмәй.",
+			SuggestedTranslation:  "Яблоко от яблони далеко не падает.",
+		},
+	}
+
+	user := &domain.User{
+		ID:                userID,
+		PreferredLangPair: "ba-kk",
+	}
+
+	handler, _, contentRepo := setupTaskHandler(tasks, nil, user)
+
+	// Делаем запрос БЕЗ явного указания lang_pair в строке запроса
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/daily", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	handler.GetDailyTasks(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ожидался статус 200 OK, получен %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if contentRepo.lastLang != "ba-kk" {
+		t.Errorf("ожидался fallback на preferred_lang_pair пользователя 'ba-kk', получен: '%s'", contentRepo.lastLang)
+	}
+}
+
 func TestTaskHandler_GetDailyTasks_Unauthorized(t *testing.T) {
-	handler, _ := setupTaskHandler(nil, nil, nil)
+	handler, _, _ := setupTaskHandler(nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/daily", nil)
 	rec := httptest.NewRecorder()
@@ -141,7 +199,7 @@ func TestTaskHandler_SubmitTask_Success(t *testing.T) {
 		InitialAutoTranslation: "Башкортостан — наша родина.",
 	}
 
-	handler, _ := setupTaskHandler(nil, ft, user)
+	handler, _, _ := setupTaskHandler(nil, ft, user)
 
 	payload := map[string]any{
 		"fragment_translation_id": ftID.String(),
@@ -185,7 +243,7 @@ func TestTaskHandler_SubmitTask_AlreadySubmitted(t *testing.T) {
 		InitialAutoTranslation: "Тест",
 	}
 
-	handler, subRepo := setupTaskHandler(nil, ft, user)
+	handler, subRepo, _ := setupTaskHandler(nil, ft, user)
 	// Отмечаем, что этот фрагмент уже был решен
 	subRepo.submitted[ftID] = true
 
@@ -206,5 +264,101 @@ func TestTaskHandler_SubmitTask_AlreadySubmitted(t *testing.T) {
 	// Должен вернуть 409 Conflict
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("ожидался статус 409 Conflict при повторном сабмите, получен %d", rec.Code)
+	}
+}
+
+func TestTaskHandler_ProposeTranslation_WithFragmentTranslationID(t *testing.T) {
+	ftID := uuid.New()
+	fragID := uuid.New()
+	ft := &domain.FragmentTranslation{
+		ID:                     ftID,
+		FragmentID:             fragID,
+		LangPair:               "ba-ru",
+		InitialAutoTranslation: "Тест",
+		Status:                 domain.StatusPending,
+	}
+	userID := uuid.New()
+	user := &domain.User{ID: userID, PreferredLangPair: "ba-ru"}
+	handler, subRepo, _ := setupTaskHandler(nil, ft, user)
+
+	payload := map[string]any{
+		"fragment_translation_id": ftID.String(),
+		"translation_text":        "Мой новый литературный перевод",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/translations", bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	handler.ProposeTranslation(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ожидался статус 200 OK, получен %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if !subRepo.submitted[ftID] {
+		t.Errorf("ответ не был зафиксирован в submissionRepo!")
+	}
+}
+
+func TestTaskHandler_ProposeTranslation_WithFragmentIDLookup(t *testing.T) {
+	ftID := uuid.New()
+	fragID := uuid.New()
+	ft := &domain.FragmentTranslation{
+		ID:                     ftID,
+		FragmentID:             fragID,
+		LangPair:               "ba-ru",
+		InitialAutoTranslation: "Тест",
+		Status:                 domain.StatusPending,
+	}
+	userID := uuid.New()
+	user := &domain.User{ID: userID, PreferredLangPair: "ba-ru"}
+	handler, subRepo, _ := setupTaskHandler(nil, ft, user)
+
+	// Передаем ТОЛЬКО fragment_id, как в React UI
+	payload := map[string]any{
+		"fragment_id":      fragID.String(),
+		"translation_text": "Перевод с поиском по fragment_id",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/translations?lang_pair=ba-ru", bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	handler.ProposeTranslation(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ожидался статус 200 OK при поиске по fragment_id, получен %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if !subRepo.submitted[ftID] {
+		t.Errorf("ответ не был зафиксирован в submissionRepo при поиске по fragment_id!")
+	}
+}
+
+func TestTaskHandler_ProposeTranslation_NotFound(t *testing.T) {
+	userID := uuid.New()
+	user := &domain.User{ID: userID, PreferredLangPair: "ba-ru"}
+	handler, _, _ := setupTaskHandler(nil, nil, user)
+
+	payload := map[string]any{
+		"fragment_id":      uuid.New().String(),
+		"translation_text": "Перевод несуществующего фрагмента",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/translations", bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	handler.ProposeTranslation(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("ожидался статус 404 Not Found, получен %d: %s", rec.Code, rec.Body.String())
 	}
 }

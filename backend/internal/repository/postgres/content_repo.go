@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"bashkir-backend/internal/domain"
@@ -154,4 +155,148 @@ func (r *ContentRepository) GetConfirmedTranslations(ctx context.Context, langPa
 		result = append(result, item)
 	}
 	return result, nil
+}
+
+func (r *ContentRepository) GetReviewQueue(ctx context.Context) ([]domain.ExpertReviewItem, error) {
+	query := `
+		SELECT 
+			ft.id, ft.fragment_id, ft.lang_pair, f.text_ba, s.title,
+			ft.initial_auto_translation,
+			COALESCE(ft.confirmed_translation, ft.initial_auto_translation) as suggested_translation,
+			ft.status, ft.confirmed_count,
+			COALESCE((SELECT COUNT(*) FROM user_submissions us WHERE us.fragment_translation_id = ft.id), 0)::INT as votes_count,
+			ft.created_at
+		FROM fragment_translations ft
+		JOIN fragments f ON ft.fragment_id = f.id
+		JOIN sources s ON f.source_id = s.id
+		WHERE ft.status = 'expert_review'
+		ORDER BY ft.updated_at DESC, ft.created_at DESC
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []domain.ExpertReviewItem
+	for rows.Next() {
+		var item domain.ExpertReviewItem
+		err := rows.Scan(
+			&item.ID, &item.FragmentID, &item.LangPair, &item.TextBa, &item.SourceTitle,
+			&item.InitialAutoTranslation, &item.SuggestedTranslation,
+			&item.Status, &item.ConfirmedCount, &item.VotesCount, &item.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, item)
+	}
+	return list, nil
+}
+
+func (r *ContentRepository) ApproveExpertReview(ctx context.Context, id uuid.UUID, approvedText string) (*domain.ConfirmedTranslation, error) {
+	ft, err := r.GetTranslationByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	frag, err := r.GetFragmentByID(ctx, ft.FragmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	finalText := approvedText
+	if finalText == "" {
+		if ft.ConfirmedTranslation != nil && *ft.ConfirmedTranslation != "" {
+			finalText = *ft.ConfirmedTranslation
+		} else {
+			finalText = ft.InitialAutoTranslation
+		}
+	}
+
+	newCount := ft.ConfirmedCount + 1
+	updateQuery := `
+		UPDATE fragment_translations
+		SET status = 'confirmed', confirmed_translation = $1, consensus_score = 1.0, confirmed_count = $2, updated_at = NOW()
+		WHERE id = $3
+	`
+	_, err = r.pool.Exec(ctx, updateQuery, finalText, newCount, id)
+	if err != nil {
+		return nil, err
+	}
+
+	coord := "Источник материалов"
+	if frag.ChapterInfo != nil && *frag.ChapterInfo != "" {
+		coord = *frag.ChapterInfo
+	}
+	if frag.SentenceIdx != nil {
+		coord = fmt.Sprintf("%s, предл. %d", coord, *frag.SentenceIdx)
+	}
+
+	ct := &domain.ConfirmedTranslation{
+		ID:             uuid.New(),
+		FragmentID:     ft.FragmentID,
+		TextBa:         frag.TextBa,
+		LangPair:       ft.LangPair,
+		Translation:    finalText,
+		SourceCoord:    coord,
+		ConfirmedCount: newCount,
+		Status:         "confirmed",
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	insertQuery := `
+		INSERT INTO confirmed_translations (id, fragment_id, text_ba, lang_pair, translation, source_coord, confirmed_count, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`
+	_, _ = r.pool.Exec(ctx, insertQuery,
+		ct.ID, ct.FragmentID, ct.TextBa, ct.LangPair, ct.Translation,
+		ct.SourceCoord, ct.ConfirmedCount, ct.Status, ct.CreatedAt, ct.UpdatedAt,
+	)
+
+	return ct, nil
+}
+
+func (r *ContentRepository) RejectExpertReview(ctx context.Context, id uuid.UUID) error {
+	query := `
+		UPDATE fragment_translations
+		SET status = 'rejected', updated_at = NOW()
+		WHERE id = $1
+	`
+	tag, err := r.pool.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrFragmentNotFound
+	}
+	return nil
+}
+
+
+
+func (r *ContentRepository) GetTranslationByFragmentAndLang(ctx context.Context, fragmentID uuid.UUID, langPair string) (*domain.FragmentTranslation, error) {
+	query := `
+		SELECT id, fragment_id, lang_pair, initial_auto_translation, has_honeypot, honeypot_variant, 
+		       confirmed_translation, consensus_score, confirmed_count, status, created_at, updated_at
+		FROM fragment_translations
+		WHERE fragment_id = $1 AND lang_pair = $2
+		LIMIT 1
+	`
+	var ft domain.FragmentTranslation
+	var statusStr string
+	err := r.pool.QueryRow(ctx, query, fragmentID, langPair).Scan(
+		&ft.ID, &ft.FragmentID, &ft.LangPair, &ft.InitialAutoTranslation,
+		&ft.HasHoneypot, &ft.HoneypotVariant, &ft.ConfirmedTranslation,
+		&ft.ConsensusScore, &ft.ConfirmedCount, &statusStr, &ft.CreatedAt, &ft.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrFragmentNotFound
+		}
+		return nil, err
+	}
+	ft.Status = domain.TranslationStatus(statusStr)
+	return &ft, nil
 }

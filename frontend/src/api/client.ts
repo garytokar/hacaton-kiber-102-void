@@ -67,7 +67,7 @@ export const api = {
   getFragmentById: (id: number) => request<Fragment>(`/fragments/${id}`),
 
   // Translations
-  proposeTranslation: (data: { fragment_id: number; translation_text: string }) =>
+  proposeTranslation: (data: { fragment_id: number; fragment_translation_id?: number | string; translation_text: string }) =>
     request<TaskSubmissionResult>('/translations', { method: 'POST', body: JSON.stringify(data) }),
   voteTranslation: (id: number, vote_type: 'confirm' | 'reject') =>
     request<TaskSubmissionResult>(`/translations/${id}/vote`, { method: 'POST', body: JSON.stringify({ vote_type }) }),

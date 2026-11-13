@@ -59,6 +59,17 @@ func (r *SubmissionRepository) CountTodaySubmissions(ctx context.Context, userID
 	return count, err
 }
 
+func (r *SubmissionRepository) CountUserSubmissions(ctx context.Context, userID uuid.UUID) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM user_submissions
+		WHERE user_id = $1
+	`
+	var count int
+	err := r.pool.QueryRow(ctx, query, userID).Scan(&count)
+	return count, err
+}
+
 func (r *SubmissionRepository) GetSubmissionsGroupedByText(ctx context.Context, fragmentTranslationID uuid.UUID) ([]domain.SubmissionGroup, int, error) {
 	query := `
 		SELECT LOWER(TRIM(submitted_text)) as clean_text, COUNT(*) as cnt

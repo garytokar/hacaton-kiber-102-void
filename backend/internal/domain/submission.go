@@ -54,6 +54,7 @@ type SubmissionRepository interface {
 	HasUserSubmitted(ctx context.Context, userID, fragmentTranslationID uuid.UUID) (bool, error)
 	CreateSubmission(ctx context.Context, sub *UserSubmission) error
 	CountTodaySubmissions(ctx context.Context, userID uuid.UUID) (int, error)
+	CountUserSubmissions(ctx context.Context, userID uuid.UUID) (int, error)
 	GetSubmissionsGroupedByText(ctx context.Context, fragmentTranslationID uuid.UUID) ([]SubmissionGroup, int, error)
 	SaveConfirmedTranslation(ctx context.Context, ct *ConfirmedTranslation) error
 }

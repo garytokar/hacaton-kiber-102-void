@@ -33,6 +33,16 @@ func (m *mockContentRepoForExport) GetFragmentByID(ctx context.Context, id uuid.
 func (m *mockContentRepoForExport) GetConfirmedTranslations(ctx context.Context, langPair string) ([]domain.ConfirmedTranslation, error) {
 	return m.confirmed, nil
 }
+func (m *mockContentRepoForExport) GetReviewQueue(ctx context.Context) ([]domain.ExpertReviewItem, error) {
+	return nil, nil
+}
+func (m *mockContentRepoForExport) ApproveExpertReview(ctx context.Context, id uuid.UUID, approvedText string) (*domain.ConfirmedTranslation, error) {
+	return nil, nil
+}
+func (m *mockContentRepoForExport) RejectExpertReview(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
 
 func TestExportHandler_ExportTranslations(t *testing.T) {
 	fragID := uuid.New()
@@ -84,4 +94,9 @@ func TestExportHandler_ExportTranslations(t *testing.T) {
 	if entry.Status != "confirmed" {
 		t.Errorf("статус должен быть confirmed")
 	}
+}
+
+
+func (m *mockContentRepoForExport) GetTranslationByFragmentAndLang(ctx context.Context, fragmentID uuid.UUID, langPair string) (*domain.FragmentTranslation, error) {
+	return nil, nil
 }

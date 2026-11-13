@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS classes (
     school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     grade_number INT NOT NULL,
     letter VARCHAR(5) NOT NULL,
+    invite_code VARCHAR(50) UNIQUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     hashed_password VARCHAR(255),
     full_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'student',
+    preferred_lang_pair VARCHAR(10) NOT NULL DEFAULT 'ba-ru',
     school_id UUID REFERENCES schools(id) ON DELETE SET NULL,
     class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
     current_streak INT DEFAULT 0,
@@ -36,6 +38,10 @@ CREATE TABLE IF NOT EXISTS users (
     total_xp INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Идемпотентное добавление колонок на случай уже существующей схемы
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS invite_code VARCHAR(50) UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_lang_pair VARCHAR(10) NOT NULL DEFAULT 'ba-ru';
 
 -- 3. Источники материалов
 CREATE TABLE IF NOT EXISTS sources (
@@ -107,9 +113,39 @@ CREATE TABLE IF NOT EXISTS confirmed_translations (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. Бейджи и система достижений (Раздел 4.5 ТЗ)
+CREATE TABLE IF NOT EXISTS badges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    icon_url VARCHAR(1000),
+    xp_bonus INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_badges (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    badge_id UUID NOT NULL REFERENCES badges(id) ON DELETE CASCADE,
+    awarded_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, badge_id)
+);
+
+-- Инициализация базовых достижений платформы
+INSERT INTO badges (id, code, name, description, xp_bonus) VALUES
+    ('b0000001-0000-0000-0000-000000000001', 'FIRST_STEP', 'Беренсе аҙым (Первый шаг)', 'Подтвердите свой первый перевод в системе', 20),
+    ('b0000002-0000-0000-0000-000000000002', 'STREAK_7', 'Ете көн (Семидневный хранитель)', 'Удерживайте стрик 7 дней подряд без перерыва', 100),
+    ('b0000003-0000-0000-0000-000000000003', 'HONEYPOT_HUNTER', 'Ҡырағай күҙ (Зоркий сокол)', 'Разоблачите скрытую проверочную ошибку автоперевода', 150),
+    ('b0000004-0000-0000-0000-000000000004', 'SCHOLAR', 'Тел ғалимы (Лингвист)', 'Наберите свыше 500 очков опыта', 200),
+    ('b0000005-0000-0000-0000-000000000005', 'VOCAB_MASTER', 'Һүҙ байлығы (Мастер словаря)', 'Проверьте 10 или более переводов в системе', 75)
+ON CONFLICT (code) DO NOTHING;
+
 -- Индексы
 CREATE INDEX IF NOT EXISTS idx_fragments_source ON fragments(source_id);
 CREATE INDEX IF NOT EXISTS idx_frag_trans_status ON fragment_translations(status, lang_pair);
 CREATE INDEX IF NOT EXISTS idx_submissions_user ON user_submissions(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_xp ON users(total_xp DESC);
 CREATE INDEX IF NOT EXISTS idx_users_tg_id ON users(tg_id);
+CREATE INDEX IF NOT EXISTS idx_classes_invite_code ON classes(invite_code);
+CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id);
+

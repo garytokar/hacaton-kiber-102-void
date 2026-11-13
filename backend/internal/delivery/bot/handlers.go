@@ -73,7 +73,12 @@ func (h *BotHandlers) HandleDaily(c tele.Context) error {
 		return c.Send("Ошибка профиля: " + err.Error())
 	}
 
-	dailyResp, err := h.taskUC.GetDailyTasks(ctx, user.ID, "ba-ru")
+	langPair := user.PreferredLangPair
+	if langPair == "" {
+		langPair = "ba-ru"
+	}
+
+	dailyResp, err := h.taskUC.GetDailyTasks(ctx, user.ID, langPair)
 	if err != nil || len(dailyResp.Tasks) == 0 {
 		return c.Send("🎉 Ты выполнил все доступные задания на сегодня! Возвращайся завтра или открой приложение для просмотра рейтинга.")
 	}
@@ -316,3 +321,65 @@ func (h *BotHandlers) HandleCancel(c tele.Context) error {
 	_ = h.redisRepo.ClearBotFSM(ctx, c.Sender().ID)
 	return c.Send("Тренировка остановлена. Возвращайся в любое время!", h.kb.MainMenu)
 }
+
+func (h *BotHandlers) HandleLang(c tele.Context) error {
+	sender := c.Sender()
+	ctx := context.Background()
+
+	user, err := h.authUC.GetOrCreateTgUser(ctx, sender.ID, sender.Username, "")
+	if err != nil {
+		return c.Send("Ошибка профиля: " + err.Error())
+	}
+
+	payload := ""
+	if c.Message() != nil {
+		payload = strings.TrimSpace(c.Message().Payload)
+	}
+
+	if payload != "" {
+		payload = strings.ToLower(payload)
+		if payload == "ba-ru" || payload == "ba-kk" || payload == "ba-en" {
+			_ = h.authUC.UpdatePreferredLangPair(ctx, user.ID, payload)
+			return c.Send(fmt.Sprintf("✅ Языковая пара успешно изменена на **%s**!\nТеперь тренировки будут использовать этот язык: /daily", payload), tele.ModeMarkdown)
+		}
+	}
+
+	curLang := user.PreferredLangPair
+	if curLang == "" {
+		curLang = "ba-ru"
+	}
+
+	msg := fmt.Sprintf(
+		"🌐 **Выбор языковой пары (Раздел 4.1 ТЗ)**\n\n"+
+			"Текущая языковая пара: **%s**\n\n"+
+			"Выбери направление перевода для тренировок:",
+		curLang,
+	)
+	return c.Send(msg, h.kb.LangControls, tele.ModeMarkdown)
+}
+
+func (h *BotHandlers) HandleSetLangBaRu(c tele.Context) error {
+	return h.setLangAndReply(c, "ba-ru")
+}
+
+func (h *BotHandlers) HandleSetLangBaKk(c tele.Context) error {
+	return h.setLangAndReply(c, "ba-kk")
+}
+
+func (h *BotHandlers) HandleSetLangBaEn(c tele.Context) error {
+	return h.setLangAndReply(c, "ba-en")
+}
+
+func (h *BotHandlers) setLangAndReply(c tele.Context, lang string) error {
+	sender := c.Sender()
+	ctx := context.Background()
+
+	user, err := h.authUC.GetOrCreateTgUser(ctx, sender.ID, sender.Username, "")
+	if err != nil {
+		return c.Send("Ошибка: " + err.Error())
+	}
+
+	_ = h.authUC.UpdatePreferredLangPair(ctx, user.ID, lang)
+	return c.Send(fmt.Sprintf("✅ Языковая пара изменена на **%s**!\nТеперь ежедневные задания будут выдаваться для этой пары: /daily", lang), tele.ModeMarkdown)
+}
+

@@ -83,8 +83,10 @@ export const DailyTaskPage: React.FC = () => {
 
     setSubmitting(true);
     try {
+      const primaryTrans = fragment.translations && fragment.translations.length > 0 ? fragment.translations[0] : null;
       const res = await api.proposeTranslation({
         fragment_id: fragment.id,
+        fragment_translation_id: primaryTrans ? (primaryTrans.id as any) : undefined,
         translation_text: proposalText.trim(),
       });
       setRewardResult(res);

@@ -65,18 +65,25 @@ func (s *BotService) registerRoutes() {
 	b.Handle("/daily", s.handlers.HandleDaily)
 	b.Handle("/stats", s.handlers.HandleStats)
 	b.Handle("/rating", s.handlers.HandleRating)
+	b.Handle("/lang", s.handlers.HandleLang)
 	b.Handle("/cancel", s.handlers.HandleCancel)
 
 	// Текстовые кнопки меню
 	b.Handle("📝 Тренировка в чате", s.handlers.HandleDaily)
 	b.Handle("📊 Моя статистика", s.handlers.HandleStats)
 	b.Handle("🏆 Рейтинг школ", s.handlers.HandleRating)
+	b.Handle("🌐 Выбор языка", s.handlers.HandleLang)
 
-	// Inline-кнопки
+	// Inline-кнопки управления карточкой
 	b.Handle(&s.kb.BtnConfirm, s.handlers.HandleConfirm)
 	b.Handle(&s.kb.BtnEdit, s.handlers.HandleEditRequest)
 	b.Handle(&s.kb.BtnReport, s.handlers.HandleReport)
 	b.Handle(&s.kb.BtnCancel, s.handlers.HandleCancel)
+
+	// Inline-кнопки выбора языковой пары
+	b.Handle(&s.kb.BtnLangBaRu, s.handlers.HandleSetLangBaRu)
+	b.Handle(&s.kb.BtnLangBaKk, s.handlers.HandleSetLangBaKk)
+	b.Handle(&s.kb.BtnLangBaEn, s.handlers.HandleSetLangBaEn)
 
 	// Текстовые сообщения для FSM ввода исправлений
 	b.Handle(tele.OnText, s.handlers.HandleTextMessage)

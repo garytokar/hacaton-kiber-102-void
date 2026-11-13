@@ -28,12 +28,12 @@ type Config struct {
 
 func LoadConfig() *Config {
 	return &Config{
-		Port:             getEnv("PORT", "8080"),
+		Port:             getEnv("PORT", "8000"),
 		DatabaseURL:      getEnv("DATABASE_URL", "postgres://postgres:secret@localhost:5432/bashkir_school?sslmode=disable"),
 		RedisURL:         getEnv("REDIS_URL", "redis://localhost:6379/0"),
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		BotMode:          getEnv("BOT_MODE", "polling"),
-		WebhookURL:       getEnv("WEBHOOK_URL", "https://example.com/api/v1/telegram/webhook"),
+		WebhookURL:       getEnv("WEBHOOK_URL", "https://example.com/api/telegram/webhook"),
 		WebAppURL:        getEnv("WEBAPP_URL", "https://example.com/app"),
 		JWTSecret:        getEnv("JWT_SECRET", "bashkir-secret-key-hackathon-2026"),
 		JWTTTL:           7 * 24 * time.Hour,

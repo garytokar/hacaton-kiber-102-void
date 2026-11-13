@@ -77,7 +77,7 @@ func main() {
 	gamifyUC := usecase.NewGamificationUseCase(userRepo, submissionRepo, redisRepo, cfg)
 	consensusUC := usecase.NewConsensusUseCase(contentRepo, submissionRepo, cfg)
 	taskUC := usecase.NewTaskUseCase(contentRepo, submissionRepo, userRepo, gamifyUC, consensusUC)
-	lmsUC := usecase.NewLMSUseCase(lmsRepo)
+	lmsUC := usecase.NewLMSUseCase(lmsRepo, userRepo)
 	exportUC := usecase.NewExportUseCase(contentRepo)
 
 	// 6. Инициализация Telegram бота (Dual-Ingress)
@@ -97,6 +97,7 @@ func main() {
 	lbH := v1.NewLeaderboardHandler(gamifyUC, lmsUC)
 	lmsH := v1.NewLMSHandler(lmsUC)
 	exportH := v1.NewExportHandler(exportUC)
+	adminH := v1.NewAdminHandler(consensusUC)
 
 	httpRouter := deliveryHTTP.NewRouter(deliveryHTTP.RouterParams{
 		Cfg:            cfg,
@@ -105,6 +106,7 @@ func main() {
 		LeaderboardH:   lbH,
 		LMSHandler:     lmsH,
 		ExportHandler:  exportH,
+		AdminHandler:   adminH,
 		WebhookHandler: webhookHandler,
 	})
 
@@ -117,7 +119,7 @@ func main() {
 
 	// 8. Запуск сервера и бота на горутинах
 	go func() {
-		log.Printf("[HTTP Server] Запущен на порту :%s", cfg.Port)
+		log.Printf("[HTTP Server] Запущен на порту :%s (роуты /api и /api/v1 активны)", cfg.Port)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("[HTTP Server] Фатальная ошибка: %v", err)
 		}

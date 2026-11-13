@@ -32,25 +32,27 @@ type Class struct {
 	SchoolID    uuid.UUID `json:"school_id"`
 	GradeNumber int       `json:"grade_number"` // 1-11
 	Letter      string    `json:"letter"`       // "А", "Б", "В"
+	InviteCode  *string   `json:"invite_code,omitempty"` // Код приглашения в класс
 	CreatedAt   time.Time `json:"created_at"`
 }
 
 // User — единый аккаунт пользователя для Web, Mini App и Telegram-бота.
 type User struct {
-	ID             uuid.UUID  `json:"id"`
-	TgID           *int64     `json:"tg_id,omitempty"`           // Telegram ID (для бота и TMA)
-	TgUsername     *string    `json:"tg_username,omitempty"`     // @username
-	Email          *string    `json:"email,omitempty"`           // Для учителей и экспертов
-	HashedPassword *string    `json:"-"`                         // Хэш пароля (скрыт из json)
-	FullName       string     `json:"full_name"`                 // Имя и фамилия
-	Role           UserRole   `json:"role"`                      // Роль в системе
-	SchoolID       *uuid.UUID `json:"school_id,omitempty"`       // Привязка к школе
-	ClassID        *uuid.UUID `json:"class_id,omitempty"`        // Привязка к классу
-	CurrentStreak  int        `json:"current_streak"`            // Текущая серия дней без перерыва
-	MaxStreak      int        `json:"max_streak"`                // Максимальная серия дней
-	LastActiveDate *time.Time `json:"last_active_date,omitempty"`// Дата последней активности
-	TotalXP        int        `json:"total_xp"`                  // Общий накопленный опыт (рейтинг)
-	CreatedAt      time.Time  `json:"created_at"`
+	ID                uuid.UUID  `json:"id"`
+	TgID              *int64     `json:"tg_id,omitempty"`              // Telegram ID (для бота и TMA)
+	TgUsername        *string    `json:"tg_username,omitempty"`        // @username
+	Email             *string    `json:"email,omitempty"`              // Для учителей и экспертов
+	HashedPassword    *string    `json:"-"`                            // Хэш пароля (скрыт из json)
+	FullName          string     `json:"full_name"`                    // Имя и фамилия
+	Role              UserRole   `json:"role"`                         // Роль в системе
+	PreferredLangPair string     `json:"preferred_lang_pair"`          // Выбранная языковая пара (по умолчанию "ba-ru")
+	SchoolID          *uuid.UUID `json:"school_id,omitempty"`          // Привязка к школе
+	ClassID           *uuid.UUID `json:"class_id,omitempty"`           // Привязка к классу
+	CurrentStreak     int        `json:"current_streak"`               // Текущая серия дней без перерыва
+	MaxStreak         int        `json:"max_streak"`                   // Максимальная серия дней
+	LastActiveDate    *time.Time `json:"last_active_date,omitempty"`   // Дата последней активности
+	TotalXP           int        `json:"total_xp"`                     // Общий накопленный опыт (рейтинг)
+	CreatedAt         time.Time  `json:"created_at"`
 }
 
 // IsStreakActive проверяет, сохраняется ли стрик пользователя.
@@ -72,4 +74,13 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	UpdateStreakAndXP(ctx context.Context, userID uuid.UUID, streak, maxStreak, addedXP int, activeDate time.Time) error
 	GetTopUsers(ctx context.Context, limit int) ([]LeaderboardUserEntry, error)
+	GetTopUsersByPeriod(ctx context.Context, period string, limit int) ([]LeaderboardUserEntry, error)
+	GetVocabularyLeaderboard(ctx context.Context, limit int) ([]LeaderboardVocabularyEntry, error)
+	UpdatePreferredLangPair(ctx context.Context, userID uuid.UUID, langPair string) error
+	UpdateUser(ctx context.Context, u *User) error
+	GetAllBadges(ctx context.Context) ([]Badge, error)
+	GetUserBadges(ctx context.Context, userID uuid.UUID) ([]UserBadge, error)
+	AwardBadge(ctx context.Context, userID, badgeID uuid.UUID) error
+	GetBadgeByCode(ctx context.Context, code string) (*Badge, error)
 }
+

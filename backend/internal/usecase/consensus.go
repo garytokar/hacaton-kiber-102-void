@@ -7,6 +7,7 @@ import (
 
 	"bashkir-backend/internal/config"
 	"bashkir-backend/internal/domain"
+	"bashkir-backend/internal/pkg/fuzzy"
 
 	"github.com/google/uuid"
 )
@@ -50,7 +51,14 @@ func (uc *ConsensusUseCase) ProcessConsensus(ctx context.Context, fragmentTransl
 		return nil
 	}
 
-	topGroup := groups[0]
+	// Нечеткая кластеризация для объединения вариантов с разной пунктуацией,
+	// дефисами/тире, кавычками и мелкими опечатками
+	clusteredGroups := fuzzy.ClusterSubmissions(groups, fuzzy.DefaultSimilarityThreshold)
+	if len(clusteredGroups) == 0 {
+		return nil
+	}
+
+	topGroup := clusteredGroups[0]
 	topRatio := float64(topGroup.Count) / float64(totalVotes)
 
 	// Правило 1: Если один и тот же вариант набрал >= 3 голосов и составляет большинство (>= 60%)
@@ -63,7 +71,10 @@ func (uc *ConsensusUseCase) ProcessConsensus(ctx context.Context, fragmentTransl
 
 		// Защита от ловушек: если большинство пользователей ошибочно одобрило ловушку (honeypot),
 		// мы ни в коем случае не сохраняем ошибку в базу эталонов — отправляем экспертам
-		if ft.HasHoneypot && ft.HoneypotVariant != nil && strings.EqualFold(strings.TrimSpace(topGroup.Text), strings.TrimSpace(*ft.HoneypotVariant)) {
+		isHoneypot := ft.HasHoneypot && ft.HoneypotVariant != nil &&
+			(strings.EqualFold(strings.TrimSpace(topGroup.Text), strings.TrimSpace(*ft.HoneypotVariant)) ||
+				fuzzy.Similarity(topGroup.Text, *ft.HoneypotVariant) >= fuzzy.DefaultSimilarityThreshold)
+		if isHoneypot {
 			return uc.contentRepo.UpdateTranslationStatus(ctx, ft.ID, domain.StatusExpertReview, topGroup.Text, topRatio, topGroup.Count)
 		}
 
@@ -107,3 +118,19 @@ func (uc *ConsensusUseCase) ProcessConsensus(ctx context.Context, fragmentTransl
 
 	return nil
 }
+
+// GetReviewQueue возвращает список фрагментов, направленных на экспертизу в УФИЦ РАН
+func (uc *ConsensusUseCase) GetReviewQueue(ctx context.Context) ([]domain.ExpertReviewItem, error) {
+	return uc.contentRepo.GetReviewQueue(ctx)
+}
+
+// ApproveTranslation утверждает перевод экспертом УФИЦ РАН и вносит его в эталонный корпус
+func (uc *ConsensusUseCase) ApproveTranslation(ctx context.Context, id uuid.UUID, approvedText string) (*domain.ConfirmedTranslation, error) {
+	return uc.contentRepo.ApproveExpertReview(ctx, id, approvedText)
+}
+
+// RejectTranslation отклоняет некорректный или спамный вариант перевода
+func (uc *ConsensusUseCase) RejectTranslation(ctx context.Context, id uuid.UUID) error {
+	return uc.contentRepo.RejectExpertReview(ctx, id)
+}
+
