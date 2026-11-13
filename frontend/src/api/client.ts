@@ -28,7 +28,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     let errorDetail = 'Произошла ошибка при выполнении запроса';
     try {
       const errorData = await response.json();
-      errorDetail = errorData.detail || errorData.message || errorDetail;
+      if (typeof errorData.detail === 'string') {
+        errorDetail = errorData.detail;
+      } else if (Array.isArray(errorData.detail)) {
+        errorDetail = errorData.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ');
+      } else if (errorData.detail && typeof errorData.detail === 'object') {
+        errorDetail = errorData.detail.message || JSON.stringify(errorData.detail);
+      } else if (errorData.message) {
+        errorDetail = errorData.message;
+      }
     } catch {
       errorDetail = response.statusText || errorDetail;
     }
