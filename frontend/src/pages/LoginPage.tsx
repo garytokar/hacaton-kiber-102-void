@@ -21,7 +21,8 @@ export const LoginPage: React.FC = () => {
       await login({ email, password });
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Ошибка входа');
+      const msg = typeof err === 'string' ? err : (err?.message && typeof err.message === 'string' ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Ошибка входа'));
+      setError(msg || 'Ошибка входа');
     } finally {
       setLoading(false);
     }
@@ -34,7 +35,8 @@ export const LoginPage: React.FC = () => {
       await quickLogin(demoEmail);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Ошибка демо-входа');
+      const msg = typeof err === 'string' ? err : (err?.message && typeof err.message === 'string' ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Ошибка демо-входа'));
+      setError(msg || 'Ошибка демо-входа');
     } finally {
       setLoading(false);
     }
