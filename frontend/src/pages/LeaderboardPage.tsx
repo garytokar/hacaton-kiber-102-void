@@ -38,7 +38,7 @@ export const LeaderboardPage: React.FC = () => {
   }, [activeTab, metric, period]);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16 select-none">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Banner */}
       <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md border border-slate-700/50">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur mb-2 border border-blue-400/30">

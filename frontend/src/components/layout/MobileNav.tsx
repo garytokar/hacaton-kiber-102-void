@@ -1,33 +1,42 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CheckCircle2, Gem, BookA, Trophy, User } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useLang } from '../../context/LanguageContext';
+import { Home, BookOpen, Gem, User } from 'lucide-react';
 
 export const MobileNav: React.FC = () => {
+  const { user, openAuthModal } = useAuth();
+  const { t } = useLang();
+
   const items = [
-    { to: '/dashboard', label: 'Главная', icon: LayoutDashboard },
-    { to: '/task', label: 'Задание', icon: CheckCircle2 },
-    { to: '/treasury', label: 'Сокровища', icon: Gem },
-    { to: '/dictionary', label: 'Словарь', icon: BookA },
-    { to: '/leaderboard', label: 'Рейтинг', icon: Trophy },
-    { to: '/profile', label: 'Профиль', icon: User },
+    { to: '/', label: t('nav_home'), icon: Home, protected: false },
+    { to: '/task', label: t('nav_tasks'), icon: BookOpen, protected: false },
+    { to: '/treasury', label: t('nav_treasury'), icon: Gem, protected: false },
+    { to: '/profile', label: t('nav_profile'), icon: User, protected: true },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-[#E2E8F0] px-2 py-1.5 flex justify-around items-center lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 flex justify-around items-center md:hidden shadow-lg">
       {items.map((item) => {
         const Icon = item.icon;
         return (
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={(e) => {
+              if (item.protected && !user) {
+                e.preventDefault();
+                openAuthModal(item.to);
+              }
+            }}
             className={({ isActive }) =>
-              `flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-semibold transition-colors ${
-                isActive ? 'text-[#1E50A0] font-bold' : 'text-slate-400 hover:text-slate-600'
+              `flex flex-col items-center py-1 px-3 rounded-xl text-xs font-semibold transition-colors ${
+                isActive ? 'text-[#1E50A0] font-bold' : 'text-slate-500 hover:text-slate-800'
               }`
             }
           >
             <Icon className="w-5 h-5 mb-0.5" />
-            <span>{item.label}</span>
+            <span className="text-[11px] leading-tight">{item.label}</span>
           </NavLink>
         );
       })}

@@ -2,565 +2,501 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { DailyQuest, WeeklyExpedition, Achievement, Fragment } from '../types';
+import { Fragment, PublicStats, LeaderboardUser, Achievement, DictionaryEntry, DailyQuest } from '../types';
+import { OnboardingModal } from '../components/onboarding/OnboardingModal';
+import { speakBashkir } from '../utils/speech';
 import heroMountains from '../assets/figma/hero_mountains.png';
 import instrumentTask from '../assets/figma/instrument_task.png';
 import treasurySunrise from '../assets/figma/treasury_sunrise.png';
 import {
-  Sparkles,
-  Flame,
-  Coins,
-  Shield,
-  ArrowRight,
-  CheckCircle2,
-  Trophy,
-  Compass,
-  BookA,
-  Target,
-  Calendar,
-  Volume2,
-  Check,
-  Edit3,
-  Heart,
-  Crown,
   BookOpen,
-  ChevronLeft,
-  ChevronRight
+  ArrowRight,
+  Volume2,
+  Headphones,
+  Trophy,
+  ExternalLink,
+  Shield,
+  Star,
+  Mountain,
+  Trees,
+  Check
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
-  const { user, refreshUser } = useAuth();
-  const [quests, setQuests] = useState<DailyQuest[]>([]);
-  const [expedition, setExpedition] = useState<WeeklyExpedition | null>(null);
+  const { user, openAuthModal } = useAuth();
+
+  // Real backend data states
+  const [stats, setStats] = useState<PublicStats | null>(null);
+  const [dailyFragment, setDailyFragment] = useState<Fragment | null>(null);
+  const [leaders, setLeaders] = useState<LeaderboardUser[]>([]);
+  const [archiveWord, setArchiveWord] = useState<DictionaryEntry | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Daily task fragments
-  const [fragments, setFragments] = useState<Fragment[]>([]);
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [confirmedIds, setConfirmedIds] = useState<number[]>([]);
-  const [taskNotice, setTaskNotice] = useState<string | null>(null);
+  const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([]);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-
-  // Leaderboard tab state
-  const [activeLeaderboardTab, setActiveLeaderboardTab] = useState<'users' | 'schools' | 'teams'>('users');
-
-  const stats = user?.stats;
-
-  const loadData = async () => {
-    try {
-      const [qData, expData, achData, fragData] = await Promise.all([
-        api.getDailyQuests().catch(() => []),
-        api.getWeeklyExpedition().catch(() => null),
-        api.getAchievements().catch(() => []),
-        api.getFragments().catch(() => [])
-      ]);
-      setQuests(qData);
-      setExpedition(expData);
-      setAchievements(achData);
-      if (Array.isArray(fragData) && fragData.length > 0) {
-        setFragments(fragData.slice(0, 5));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    loadData();
+    // 1. Public corpus stats
+    api.getPublicStats()
+      .then((data) => setStats(data))
+      .catch(() => {});
+
+    // 2. Daily task fragment preview
+    api.getDailyFragment()
+      .then((data) => setDailyFragment(data))
+      .catch(() => {});
+
+    // 3. Weekly leaders
+    api.getLeaderboard('weekly', 'xp')
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setLeaders(data.slice(0, 3));
+        }
+      })
+      .catch(() => {});
+
+    // 4. Archive word from dictionary/treasury
+    api.getDictionary()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setArchiveWord(data[0]);
+        }
+      })
+      .catch(() => {});
+
+    // 5. Achievements
+    api.getAchievements()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAchievements(data);
+        }
+      })
+      .catch(() => {});
+
+    // 6. Daily Quests
+    api.getDailyQuests()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDailyQuests(data);
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const handleClaim = async (questId: number) => {
-    try {
-      await api.claimQuest(questId);
-      await Promise.all([loadData(), refreshUser()]);
-    } catch (err: any) {
-      alert(err.message || 'Ошибка получения награды');
-    }
-  };
-
-  const currentFragment = fragments[currentIdx] || {
-    id: 1,
-    text_ba: 'Был донъяла иң ҡәҙерле нәмә — ваҡыт.',
-    translations: [{ id: 1, translation_text: 'В этом мире самое ценное — время.' }],
-    source_title: 'Башкирский эпос "Урал-батыр"',
-    difficulty: 'medium',
-  };
-
-  const primaryTranslation = currentFragment.translations?.[0]?.translation_text || 'В этом мире самое ценное — время.';
-
-  const handleConfirmTask = async () => {
-    const tId = currentFragment.translations?.[0]?.id;
-    if (tId) {
-      try {
-        await api.voteTranslation(tId, 'confirm');
-        setConfirmedIds((prev) => [...prev, currentFragment.id]);
-        setTaskNotice('✓ Перевод подтверждён! Получено +10 XP');
-        await refreshUser();
-        setTimeout(() => setTaskNotice(null), 3000);
-      } catch (err: any) {
-        setTaskNotice(err.message || 'Голос уже учтён');
-        setTimeout(() => setTaskNotice(null), 3000);
-      }
-    }
-  };
-
   const handlePlayAudio = () => {
+    if (!dailyFragment?.text_ba) return;
     setIsPlayingAudio(true);
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(currentFragment.text_ba);
-      utterance.lang = 'ru-RU';
-      utterance.onend = () => setIsPlayingAudio(false);
-      utterance.onerror = () => setIsPlayingAudio(false);
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setTimeout(() => setIsPlayingAudio(false), 1500);
-    }
+    speakBashkir(dailyFragment.text_ba, {
+      onStart: () => setIsPlayingAudio(true),
+      onEnd: () => setIsPlayingAudio(false),
+      onError: () => setIsPlayingAudio(false),
+    });
   };
 
-  const xpProgress = stats
-    ? Math.min(100, Math.round((stats.xp / Math.max(stats.next_level_xp, 1)) * 100))
-    : 0;
+  const primaryTranslation = dailyFragment?.translations?.[0]?.translation_text || null;
+  const userStreak = user?.stats?.current_streak ?? 0;
+  const streakGoal = 7;
+  const streakPercent = Math.min(100, Math.round((userStreak / streakGoal) * 100));
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12 select-none">
-      {/* 1. SAPPHIRE HERO / USER WELCOME BANNER (Figma Style) */}
-      <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden border border-slate-700/50">
-        <div className="relative z-10 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur mb-2 border border-blue-400/30">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Уровень {stats?.level || 1} — {stats?.level_title || 'Хранитель языка'}</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Хәйерле көн, {user?.full_name || user?.username}!
-              </h1>
-              <p className="text-slate-300 text-xs sm:text-sm mt-1">
-                Школа: {user?.school_name || 'Индивидуальный Хранитель'} {user?.class_name ? `(${user.class_name})` : ''}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Daily Streak Pill */}
-              <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10">
-                <Flame className="w-4 h-4 text-amber-400 fill-amber-400" />
-                <span className="text-xs font-bold text-white">{stats?.current_streak || 1} дн. ударно</span>
-              </div>
-
-              {/* Kuray Coins Pill */}
-              <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10">
-                <Coins className="w-4 h-4 text-amber-300" />
-                <span className="text-xs font-bold text-amber-300">{stats?.currency || 0} Ҡурай</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Progress to next level bar */}
-          <div className="pt-2">
-            <div className="flex justify-between text-xs text-slate-300 font-medium mb-1.5">
-              <span>Прогресс до следующего уровня</span>
-              <span className="font-bold text-white">
-                {stats?.xp || 0} / {stats?.next_level_xp || 100} XP ({xpProgress}%)
-              </span>
-            </div>
-            <div className="w-full h-2.5 bg-black/30 rounded-full overflow-hidden p-0.5">
-              <div
-                className="h-full bg-gradient-to-r from-[#1E50A0] to-[#3B82F6] rounded-full transition-all duration-500 shadow"
-                style={{ width: `${xpProgress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. DAILY TASK SECTION (Identical to Figma node 1:3 layout) */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-5 bg-[#1E50A0] rounded-full inline-block" />
-            <h2 className="text-base sm:text-lg font-bold text-[#0C2340]">
-              Ежедневное задание
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-            <button
-              onClick={() => setCurrentIdx((prev) => (prev - 1 + Math.max(fragments.length, 1)) % Math.max(fragments.length, 1))}
-              className="p-1 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-2">
-              {currentIdx + 1} / {Math.max(fragments.length, 5)}
-            </span>
-            <button
-              onClick={() => setCurrentIdx((prev) => (prev + 1) % Math.max(fragments.length, 1))}
-              className="p-1 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in">
+      {/* 1. HERO BANNER: PANORAMIC SAPPHIRE WITH MOUNTAINS */}
+      <section className="bg-gradient-to-r from-[#0C2340] via-[#0E2B52] to-[#143B6D] rounded-3xl p-6 sm:p-10 lg:p-12 text-white shadow-md relative overflow-hidden">
+        {/* Right Mountain Art Overlay */}
+        <div className="absolute right-0 top-0 bottom-0 w-full lg:w-3/5 pointer-events-none opacity-40 lg:opacity-75 mix-blend-screen overflow-hidden">
+          <img
+            src={heroMountains}
+            alt="Уральские горы"
+            className="w-full h-full object-cover object-right"
+          />
         </div>
 
-        {taskNotice && (
-          <div className="bg-[#EEF2FF] border border-[#1E50A0]/30 text-[#1E50A0] px-4 py-2 rounded-xl text-xs font-bold animate-fade-in">
-            {taskNotice}
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* Left Text & CTA */}
+          <div className="lg:col-span-8 space-y-5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-semibold text-slate-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+              <span>ЖИВОЙ КОРПУС БАШКИРСКОГО ЯЗЫКА</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.12]">
+              Сохраняй язык. <br />
+              Создавай наследие.
+            </h1>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+              Язык остаётся живым, когда им делятся: переводите, сверяйте и сохраняйте башкирские тексты — от народных пословиц до аудиоархивов.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Link
+                to="/task"
+                className="px-6 py-3 rounded-full bg-white text-[#0C2340] hover:bg-slate-100 text-xs sm:text-sm font-black shadow-lg transition-all flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>Продолжить практику</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              {/* Requirement 7: Leads directly to /about (LandingPage) */}
+              <Link
+                to="/about"
+                className="px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold backdrop-blur-sm transition-colors cursor-pointer"
+              >
+                О платформе
+              </Link>
+            </div>
           </div>
-        )}
 
-        <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-7 lg:p-8 shadow-sm">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-            {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-4">
-              <div className="space-y-1.5">
-                <div className="text-xl sm:text-2xl font-black text-[#0C2340] leading-snug tracking-tight font-serif">
-                  «{currentFragment.text_ba}»
-                </div>
-                <div className="text-sm sm:text-base text-slate-600 font-medium">
-                  «{primaryTranslation}»
-                </div>
+          {/* Right Floating Stat Cards (Real data from API) */}
+          <div className="lg:col-span-4 flex justify-end gap-3 self-start">
+            <div className="p-4 rounded-2xl bg-[#0C2340]/70 backdrop-blur-md border border-white/10 text-left min-w-[130px] shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                СЕГОДНЯ
               </div>
-
-              {/* Source & Difficulty Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#1E50A0] text-xs font-bold">
-                <span>{currentFragment.source_title || 'Башкирский эпос "Урал-батыр"'}</span>
-                <span>•</span>
-                <span>Сложность: {currentFragment.difficulty === 'hard' ? 'Высокая' : currentFragment.difficulty === 'easy' ? 'Базовая' : 'Средняя'}</span>
+              <div className="text-xl sm:text-2xl font-black text-white mt-0.5">
+                {stats ? stats.total_fragments.toLocaleString('ru-RU') : '—'}
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button
-                  onClick={handleConfirmTask}
-                  className={`px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
-                    confirmedIds.includes(currentFragment.id)
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-[#0C2340] hover:bg-[#1A4480] text-white transform hover:-translate-y-0.5'
-                  }`}
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{confirmedIds.includes(currentFragment.id) ? 'Подтверждено ✓' : 'Подтвердить'}</span>
-                </button>
-
-                <Link
-                  to="/task"
-                  className="px-5 py-2.5 rounded-full bg-white hover:bg-blue-50 border border-[#1E50A0] text-[#1E50A0] text-xs font-bold flex items-center gap-1.5 transition-colors"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Исправить</span>
-                </Link>
-
-                <button
-                  onClick={() => setCurrentIdx((prev) => (prev + 1) % Math.max(fragments.length, 1))}
-                  className="px-4 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1"
-                >
-                  <span>Следующее</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+              <div className="text-xs text-slate-300 mt-0.5">
+                слов в корпусе
               </div>
             </div>
 
-            {/* Right Instrument Audio Graphic Column */}
-            <div className="lg:col-span-5 flex justify-center">
-              <div className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-sm group border border-slate-100">
-                <img
-                  src={instrumentTask}
-                  alt="Башкирский музыкальный инструмент"
-                  className="w-full h-48 sm:h-52 object-cover transition-transform group-hover:scale-105 duration-300"
-                />
-
-                <button
-                  onClick={handlePlayAudio}
-                  disabled={isPlayingAudio}
-                  className={`absolute inset-0 m-auto w-12 h-12 rounded-full bg-white/95 text-[#0C2340] shadow-xl flex items-center justify-center transition-all ${
-                    isPlayingAudio ? 'scale-110 ring-4 ring-[#1E50A0]/40' : 'hover:scale-110 hover:bg-white'
-                  }`}
-                  title="Прослушать произношение"
-                >
-                  <Volume2 className={`w-5 h-5 ${isPlayingAudio ? 'text-[#1E50A0] animate-pulse' : 'text-[#0C2340]'}`} />
-                </button>
+            <div className="p-4 rounded-2xl bg-[#0C2340]/70 backdrop-blur-md border border-white/10 text-left min-w-[130px] shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                СООБЩЕСТВО
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-white mt-0.5">
+                {stats ? stats.total_users.toLocaleString('ru-RU') : '—'}
+              </div>
+              <div className="text-xs text-slate-300 mt-0.5">
+                хранителей
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. THREE-COLUMN BOTTOM GRID (Matching Figma node 1:3) */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* CARD 1: Сокровищница языка */}
-        <div className="space-y-2 flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 bg-[#1E50A0] rounded-full inline-block" />
-            <h3 className="text-sm font-bold text-[#0C2340]">
-              Сокровищница языка
-            </h3>
+      {/* 2. ФРАГМЕНТ ДНЯ (DAILY TASK PREVIEW - Single practice flow via /task) */}
+      <section className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-sm space-y-6">
+        {/* Card Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#0C2340] text-white flex items-center justify-center shadow-xs">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                ФРАГМЕНТ ДНЯ • {dailyFragment?.category || 'ПОСЛОВИЦЫ'}
+              </div>
+              <h2 className="text-base sm:text-lg font-black text-[#0C2340]">
+                Проверьте смысл, не только слова
+              </h2>
+            </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-sm flex-1 flex flex-col justify-between space-y-4">
-            <div>
-              <div className="text-2xl font-black text-[#0C2340] tracking-tight">
-                ҡояш
+          <Link
+            to="/task"
+            className="flex items-center gap-1.5 text-xs font-bold text-[#1E50A0] hover:text-[#0C2340] transition-colors"
+          >
+            <span>Вся практика</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {/* Two-Column Task Preview Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* Left Column: Original & Translation */}
+          <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
+            {/* Original Bashkir Card */}
+            <div className="p-5 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  ОРИГИНАЛ • БАШҠОРТСА
+                </span>
+                <button
+                  type="button"
+                  onClick={handlePlayAudio}
+                  disabled={isPlayingAudio}
+                  className={`w-8 h-8 rounded-xl bg-white shadow-xs border border-slate-200 flex items-center justify-center transition-all cursor-pointer ${
+                    isPlayingAudio ? 'ring-2 ring-[#1E50A0] text-[#1E50A0]' : 'text-slate-600 hover:text-[#0C2340]'
+                  }`}
+                  title="Прослушать башкирское произношение"
+                >
+                  <Volume2 className={`w-4 h-4 ${isPlayingAudio ? 'text-[#1E50A0]' : ''}`} />
+                </button>
+              </div>
+
+              <div className="text-2xl sm:text-3xl font-black text-[#0C2340] leading-snug tracking-tight font-serif">
+                {dailyFragment?.text_ba || 'Тыуған тел — халыҡтың рухи байлығы.'}
+              </div>
+
+              <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 pt-1">
+                <span>📚</span>
+                <span>{dailyFragment?.source_title || '«Башҡорт халыҡ мәҡәлдәре»'}</span>
+              </div>
+            </div>
+
+            {/* Translation Card */}
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                ПЕРЕВОД • BA-RU
+              </span>
+              <div className="text-sm sm:text-base font-semibold text-slate-800">
+                {primaryTranslation || 'Родной язык — духовное богатство народа.'}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Audio Box & Single Action to /task */}
+          <div className="lg:col-span-5 flex flex-col justify-between space-y-3">
+            {/* Audio Box */}
+            <div
+              onClick={handlePlayAudio}
+              className="relative rounded-2xl overflow-hidden h-36 border border-slate-200/80 shadow-xs group cursor-pointer"
+              title="Нажмите, чтобы прослушать башкирскую речь"
+            >
+              <img
+                src={instrumentTask}
+                alt="Башкирский инструмент думбыра"
+                className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+              />
+
+              <div className="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center text-[#0C2340] shadow-xs">
+                <Headphones className="w-3.5 h-3.5" />
+              </div>
+
+              <div className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center text-[#0C2340] shadow-xs">
+                <Volume2 className={`w-3.5 h-3.5 ${isPlayingAudio ? 'text-[#1E50A0]' : ''}`} />
+              </div>
+
+              <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/70 via-black/30 to-transparent text-white">
+                <div className="text-xs font-bold leading-tight">Слушайте звучание</div>
+                <div className="text-xs text-slate-200">Аудиофрагмент произношения</div>
+              </div>
+            </div>
+
+            {/* Single Action Button leading to /task */}
+            <div className="pt-2">
+              <Link
+                to="/task"
+                className="w-full py-3.5 rounded-full bg-[#1E50A0] hover:bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+              >
+                <span>Перейти к выполнению задания</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. THREE-COLUMN BOTTOM GRID */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* CARD 1: Сокровищница языка */}
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-sm flex flex-col justify-between space-y-4">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  СЛОВО ИЗ АРХИВА
+                </span>
+                <h3 className="text-sm font-bold text-[#0C2340]">
+                  Сокровищница языка
+                </h3>
+              </div>
+              <Link
+                to="/treasury"
+                className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-[#1E50A0] transition-colors"
+                title="Открыть сокровищницу"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="pt-4 space-y-2">
+              <div className="text-3xl font-black text-[#0C2340] tracking-tight">
+                {archiveWord ? archiveWord.word : 'ҡояш'}
               </div>
               <div className="text-xs text-slate-500 font-medium">
-                солнце (корень башкирского языка)
+                {archiveWord ? archiveWord.translation : 'солнце'}
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5 mt-3">
-                <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#1E50A0] text-[10px] font-bold">
-                  ba-ru
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold flex items-center gap-1">
-                  <Heart className="w-2.5 h-2.5 fill-emerald-600" />
-                  <span>128 голосов</span>
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold">
-                  Айгуль Х.
-                </span>
-              </div>
+              {archiveWord?.context && (
+                <div className="text-xs text-slate-400 italic pt-0.5">
+                  «{archiveWord.context}»
+                </div>
+              )}
 
-              <div className="mt-4 rounded-xl overflow-hidden border border-slate-100 shadow-inner">
+              <div className="mt-4 rounded-2xl overflow-hidden border border-slate-100 shadow-inner">
                 <img
                   src={treasurySunrise}
-                  alt="Восход над горами Башкортостана"
+                  alt="Восход над горами"
                   className="w-full h-28 object-cover hover:scale-105 transition-transform duration-300"
                 />
               </div>
             </div>
-
-            <div className="pt-2 border-t border-slate-100">
-              <Link
-                to="/treasury"
-                className="text-xs font-bold text-[#1E50A0] hover:text-[#0C2340] flex items-center justify-between group"
-              >
-                <span>Перейти в сокровищницу</span>
-                <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
           </div>
         </div>
 
-        {/* CARD 2: Рейтинг сообщества */}
-        <div className="space-y-2 flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 bg-[#1E50A0] rounded-full inline-block" />
-            <h3 className="text-sm font-bold text-[#0C2340]">
-              Рейтинг сообщества
-            </h3>
-          </div>
-
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-sm flex-1 flex flex-col justify-between space-y-4">
-            <div>
-              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl mb-3">
-                <button
-                  onClick={() => setActiveLeaderboardTab('users')}
-                  className={`flex-1 py-1 rounded-xl text-[11px] font-bold transition-all ${
-                    activeLeaderboardTab === 'users'
-                      ? 'bg-[#1E50A0] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Пользователи
-                </button>
-                <button
-                  onClick={() => setActiveLeaderboardTab('schools')}
-                  className={`flex-1 py-1 rounded-xl text-[11px] font-bold transition-all ${
-                    activeLeaderboardTab === 'schools'
-                      ? 'bg-[#1E50A0] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Школы
-                </button>
-                <button
-                  onClick={() => setActiveLeaderboardTab('teams')}
-                  className={`flex-1 py-1 rounded-xl text-[11px] font-bold transition-all ${
-                    activeLeaderboardTab === 'teams'
-                      ? 'bg-[#1E50A0] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Команды
-                </button>
+        {/* CARD 2: Лидеры недели (Real Leaderboard) */}
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-sm flex flex-col justify-between space-y-4">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  СИЛА СООБЩЕСТВА
+                </span>
+                <h3 className="text-sm font-bold text-[#0C2340]">
+                  Лидеры недели
+                </h3>
               </div>
-
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs p-1.5 rounded-xl hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 text-center font-black text-amber-500 text-sm">1</span>
-                    <div className="w-7 h-7 rounded-full bg-blue-100 text-[#1E50A0] font-bold text-xs flex items-center justify-center">
-                      АХ
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs">Айгуль Х.</div>
-                      <div className="text-[10px] text-slate-400">Уровень 12</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-[#1E50A0] text-xs">2 450 XP</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs p-1.5 rounded-xl hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 text-center font-black text-slate-400 text-sm">2</span>
-                    <div className="w-7 h-7 rounded-full bg-indigo-100 text-[#0C2340] font-bold text-xs flex items-center justify-center">
-                      РС
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs">Рамиль С.</div>
-                      <div className="text-[10px] text-slate-400">Уровень 9</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-[#1E50A0] text-xs">1 980 XP</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs p-1.5 rounded-xl hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 text-center font-black text-amber-700 text-sm">3</span>
-                    <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center">
-                      ЭГ
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs">Элина Г.</div>
-                      <div className="text-[10px] text-slate-400">Уровень 8</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-[#1E50A0] text-xs">1 720 XP</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100">
               <Link
                 to="/leaderboard"
-                className="text-xs font-bold text-[#1E50A0] hover:text-[#0C2340] flex items-center justify-between group"
+                className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center"
+                title="Все лидеры"
               >
-                <span>Полный рейтинг</span>
-                <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
+                <Trophy className="w-4 h-4" />
               </Link>
+            </div>
+
+            <div className="pt-3 space-y-2.5">
+              {leaders.length > 0 ? (
+                leaders.map((leader, idx) => (
+                  <div key={leader.user_id || idx} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-slate-50/70">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-4 font-bold text-xs ${idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : 'text-amber-700'}`}>
+                        {idx + 1}
+                      </span>
+                      <div className="w-7 h-7 rounded-full bg-blue-100 text-[#1E50A0] font-bold text-xs flex items-center justify-center">
+                        {(leader.full_name || leader.username || 'Х').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="font-semibold text-slate-900 text-xs truncate max-w-[120px]">
+                        {leader.full_name || leader.username}
+                      </span>
+                    </div>
+                    <span className="font-bold text-[#1E50A0] text-xs">
+                      {leader.xp.toLocaleString('ru-RU')} XP
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-slate-400 py-6 text-center">
+                  Пока нет данных лидеров
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* CARD 3: Мои достижения и ежедневные квесты */}
-        <div className="space-y-2 flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 bg-[#1E50A0] rounded-full inline-block" />
-            <h3 className="text-sm font-bold text-[#0C2340]">
-              Мои достижения
-            </h3>
-          </div>
+        {/* CARD 3: Достижения Хранителя (Real User Progress) */}
+        <div className="bg-[#0C2340] rounded-3xl p-6 text-white shadow-sm flex flex-col justify-between space-y-4">
+          <div>
+            <div className="pb-3 border-b border-white/10">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                ДОСТИЖЕНИЯ ХРАНИТЕЛЯ
+              </span>
+              <h3 className="text-sm font-bold text-white mt-0.5">
+                Коллекция
+              </h3>
+            </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-sm flex-1 flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              {/* Circular Achievement Badges */}
-              <div className="flex items-center justify-between px-1">
-                <div
-                  className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                  title="Огонь знаний: 7 дней подряд"
-                >
-                  <Flame className="w-5 h-5 fill-red-500 text-red-500" />
+            <div className="pt-4 space-y-4">
+              {/* Row of 5 blue circular badges */}
+              <div className="flex items-center justify-between">
+                <div className="w-9 h-9 rounded-full bg-[#1E50A0]/60 text-white flex items-center justify-center shadow-xs">
+                  <BookOpen className="w-4 h-4 text-white" />
                 </div>
-                <div
-                  className="w-10 h-10 rounded-full bg-blue-100 text-[#1E50A0] flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                  title="Полиглот: 50 фраз"
-                >
-                  <BookOpen className="w-5 h-5 text-[#1E50A0]" />
+                <div className="w-9 h-9 rounded-full bg-[#1E50A0]/60 text-white flex items-center justify-center shadow-xs">
+                  <Star className="w-4 h-4 text-white" />
                 </div>
-                <div
-                  className="w-10 h-10 rounded-full bg-indigo-100 text-[#0C2340] flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                  title="Страж точности: 10 проверок"
-                >
-                  <Shield className="w-5 h-5 text-[#0C2340]" />
+                <div className="w-9 h-9 rounded-full bg-[#1E50A0]/60 text-white flex items-center justify-center shadow-xs">
+                  <Mountain className="w-4 h-4 text-white" />
                 </div>
-                <div
-                  className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                  title="Мастер эпоса"
-                >
-                  <Trophy className="w-5 h-5 text-amber-600" />
+                <div className="w-9 h-9 rounded-full bg-[#1E50A0]/60 text-white flex items-center justify-center shadow-xs">
+                  <Trees className="w-4 h-4 text-white" />
                 </div>
-                <div
-                  className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform"
-                  title="Легенда Урала"
-                >
-                  <Crown className="w-5 h-5 text-purple-700" />
+                <div className="w-9 h-9 rounded-full bg-[#1E50A0]/60 text-white flex items-center justify-center shadow-xs">
+                  <Shield className="w-4 h-4 text-white" />
                 </div>
               </div>
 
-              {/* Active Milestone or Daily Quests Claim */}
-              {quests.length > 0 && quests[0] ? (
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs font-bold text-slate-900 truncate max-w-[150px]">
-                      {quests[0].name}
-                    </div>
-                    {quests[0].completed && !quests[0].claimed ? (
-                      <button
-                        onClick={() => handleClaim(quests[0].id)}
-                        className="text-[10px] font-bold text-white bg-[#1E50A0] hover:bg-[#2563EB] px-2.5 py-1 rounded-full shadow-sm animate-pulse"
-                      >
-                        Забрать +{quests[0].reward_xp} XP
-                      </button>
-                    ) : (
-                      <span className="text-[10px] font-bold text-[#1E50A0] bg-[#EEF2FF] px-2 py-0.5 rounded-full">
-                        {quests[0].progress} / {quests[0].target}
-                      </span>
-                    )}
+              {/* Progress Card */}
+              {user ? (
+                <div className="p-3.5 rounded-2xl bg-white/10 border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white">Семидневный хранитель</span>
+                    <span className="text-xs font-semibold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full">
+                      {userStreak} / {streakGoal} дней
+                    </span>
                   </div>
-
-                  <p className="text-[11px] text-slate-500 leading-tight">
-                    {quests[0].description}
+                  <p className="text-xs text-slate-300 leading-tight">
+                    Выполняйте задания 7 дней подряд
                   </p>
-
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#1E50A0] rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, Math.round((quests[0].progress / Math.max(quests[0].target, 1)) * 100))}%`
-                      }}
-                    />
+                  <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-400 rounded-full" style={{ width: `${streakPercent}%` }} />
                   </div>
                 </div>
               ) : (
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs font-bold text-slate-900">
-                      Семидневный хранитель
-                    </div>
-                    <span className="text-[10px] font-bold text-[#1E50A0] bg-[#EEF2FF] px-2 py-0.5 rounded-full">
-                      5 / 7 дней
+                <div className="p-3.5 rounded-2xl bg-white/10 border border-white/10 text-center space-y-2">
+                  <p className="text-xs text-slate-300">
+                    Войдите в аккаунт, чтобы отслеживать прогресс и получать награды
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('/achievements')}
+                    className="inline-block px-4 py-1.5 rounded-full bg-white text-[#0C2340] text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    Войти
+                  </button>
+                </div>
+              )}
+
+              {/* Daily Quest Highlight */}
+              {dailyQuests.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-white/10 border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white flex items-center gap-1.5 truncate max-w-[170px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                      <span className="truncate">{dailyQuests[0].name}</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full shrink-0">
+                      +{dailyQuests[0].reward_xp} XP
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
-                    Подтверждайте переводы 7 дней подряд без перерыва
+                  <p className="text-xs text-slate-300 leading-tight">
+                    {dailyQuests[0].description}
                   </p>
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="flex items-center justify-between text-[11px] text-slate-300 pt-0.5">
+                    <span>
+                      {Math.min(dailyQuests[0].progress, dailyQuests[0].target)} / {dailyQuests[0].target}
+                    </span>
+                    {dailyQuests[0].completed && (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Выполнен
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#1E50A0] rounded-full transition-all duration-500"
-                      style={{ width: '71%' }}
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        dailyQuests[0].completed ? 'bg-emerald-400' : 'bg-blue-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.round((dailyQuests[0].progress / dailyQuests[0].target) * 100))}%`,
+                      }}
                     />
                   </div>
                 </div>
               )}
             </div>
-
-            <div className="pt-2 border-t border-slate-100">
-              <Link
-                to="/achievements"
-                className="text-xs font-bold text-[#1E50A0] hover:text-[#0C2340] flex items-center justify-between group"
-              >
-                <span>Все достижения</span>
-                <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
           </div>
         </div>
       </section>
+
+      {/* Onboarding Modal retained for explicit usage */}
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+      />
     </div>
   );
 };

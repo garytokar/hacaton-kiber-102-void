@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { ActivityPoint } from '../types';
+import { UserAvatar } from '../components/ui/UserAvatar';
 import defaultAvatar from '../assets/figma/avatar_user.png';
 import {
   User, Shield, Flame, Coins, Sparkles, School, Edit2, Check,
-  Calendar, CheckCircle2, Trophy, Clock
+  Calendar, CheckCircle2, Trophy, Clock, ShoppingBag
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
@@ -48,19 +50,12 @@ export const ProfilePage: React.FC = () => {
   const stats = user?.stats;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16 select-none">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Profile Header Card */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <img
-              src={defaultAvatar}
-              alt={user?.full_name || user?.username}
-              className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 shadow-sm"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
+            <UserAvatar user={user} size="lg" />
 
             <div>
               <div className="flex items-center gap-2">
@@ -112,8 +107,8 @@ export const ProfilePage: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100">
           <div className="p-3.5 rounded-2xl bg-[#F8FAFC]">
             <span className="text-[11px] font-bold text-slate-400 uppercase">Уровень</span>
-            <div className="text-base sm:text-lg font-black text-[#0C2340] mt-0.5">
-              {stats?.level || 1} ({stats?.level_title || 'Хранитель'})
+            <div className="text-sm sm:text-base font-black text-[#0C2340] mt-0.5 truncate" title={`Уровень ${stats?.level || 1} • ${stats?.level_title || 'Хранитель'}`}>
+              {stats?.level || 1} • {stats?.level_title || 'Хранитель'}
             </div>
           </div>
 
@@ -138,6 +133,27 @@ export const ProfilePage: React.FC = () => {
               <Coins className="w-4 h-4 fill-amber-500" />
               <span>{stats?.currency || 0}</span>
             </div>
+          </div>
+        </div>
+
+        {/* XP Progress Bar to Next Level */}
+        <div className="p-4 rounded-2xl bg-[#EEF2FF] border border-blue-100 space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-[#0C2340]">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#1E50A0]" />
+              <span>Путь Хранителя: Уровень {stats?.level || 1} → {Math.min((stats?.level || 1) + 1, 10)}</span>
+            </span>
+            <span className="text-slate-500 font-mono text-[11px]">
+              {stats?.xp || 0} / {stats?.next_level_xp || 2500} XP (осталось {Math.max((stats?.next_level_xp || 2500) - (stats?.xp || 0), 0)} XP)
+            </span>
+          </div>
+          <div className="w-full h-2.5 rounded-full bg-blue-200/50 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#1E50A0] to-blue-500 transition-all duration-500"
+              style={{
+                width: `${Math.min(100, Math.round(((stats?.xp || 0) / (stats?.next_level_xp || 2500)) * 100))}%`
+              }}
+            />
           </div>
         </div>
       </div>
@@ -165,13 +181,22 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={handleBuyProtection}
-          disabled={protecting || stats?.streak_protected || (stats?.currency || 0) < 50}
-          className="px-5 py-2.5 rounded-full bg-[#0C2340] hover:bg-[#1A4480] text-white font-extrabold text-xs shadow-md transition-all disabled:opacity-50 shrink-0"
-        >
-          {stats?.streak_protected ? 'Защита уже активна' : 'Активировать за 50 Ҡурай'}
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/shop"
+            className="px-4 py-2.5 rounded-full border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-[#1E50A0]" />
+            <span>Вся лавка артефактов</span>
+          </Link>
+          <button
+            onClick={handleBuyProtection}
+            disabled={protecting || stats?.streak_protected || (stats?.currency || 0) < 50}
+            className="px-5 py-2.5 rounded-full bg-[#0C2340] hover:bg-[#1A4480] text-white font-extrabold text-xs shadow-md transition-all disabled:opacity-50 shrink-0"
+          >
+            {stats?.streak_protected ? 'Защита уже активна' : 'Активировать за 50 Ҡурай'}
+          </button>
+        </div>
       </div>
 
       {message && (

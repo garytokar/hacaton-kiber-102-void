@@ -17,7 +17,7 @@ export const AchievementsPage: React.FC = () => {
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16 select-none">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Banner */}
       <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700/50">
         <div>

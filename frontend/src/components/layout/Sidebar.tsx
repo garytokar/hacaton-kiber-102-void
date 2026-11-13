@@ -1,99 +1,244 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLang } from '../../context/LanguageContext';
 import { BashkirOrnament } from '../ui/BashkirOrnament';
-import sidebarMountains from '../../assets/figma/sidebar_mountains.png';
 import {
   Home,
   BookOpen,
   Gem,
+  BookA,
+  User as UserIcon,
   Trophy,
   Award,
   Users,
   BarChart2,
-  BookA,
-  User as UserIcon,
+  ShoppingBag,
   Settings,
-  ArrowRight
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  MoreHorizontal
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
+  const { t, lang } = useLang();
+  const location = useLocation();
 
-  const navItems = [
-    { to: '/dashboard', label: 'Главная', icon: Home },
-    { to: '/task', label: 'Обучение...', icon: BookOpen },
-    { to: '/treasury', label: 'Сокровищни...', icon: Gem },
-    { to: '/leaderboard', label: 'Рейтинг...', icon: Trophy },
-    { to: '/achievements', label: 'Достижен...', icon: Award },
-    { to: '/expeditions', label: 'Команда...', icon: Users },
-    { to: '/profile#stats', label: 'Статистика', icon: BarChart2 },
-    { to: '/dictionary', label: 'Словарь', icon: BookA },
-    { to: '/profile', label: 'Профиль...', icon: UserIcon },
+  // Controlled open/collapsed state
+  const [isOpen, setIsOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('yanlander_sidebar_open');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebar = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('yanlander_sidebar_open', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // 1. Primary items in first row: Home, Practice, Treasury, Dictionary, Profile
+  const primaryNavItems = [
+    { to: '/', labelKey: 'nav_home', icon: Home },
+    { to: '/task', labelKey: 'nav_tasks', icon: BookOpen },
+    { to: '/treasury', labelKey: 'nav_treasury', icon: Gem },
+    { to: '/dictionary', labelKey: 'nav_dictionary', icon: BookA },
+    { to: '/profile', labelKey: 'nav_profile', icon: UserIcon },
   ];
 
-  if (user?.role === 'admin' || user?.role === 'expert' || user?.role === 'teacher') {
-    navItems.push({ to: '/admin', label: 'Модерация...', icon: Settings });
-  }
+  // 2. Secondary items in "Ещё" (collapsed by default): Leaderboard, Achievements, Expeditions, Analytics, Shop
+  const secondaryNavItems = [
+    { to: '/leaderboard', labelKey: 'nav_leaderboard', icon: Trophy },
+    { to: '/achievements', labelKey: 'nav_achievements', icon: Award },
+    { to: '/expeditions', labelKey: 'nav_team', icon: Users },
+    { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart2 },
+    { to: '/shop', labelKey: 'nav_shop', icon: ShoppingBag },
+  ];
+
+  const isAnySecondaryActive = secondaryNavItems.some((item) => location.pathname === item.to);
+  const [moreOpen, setMoreOpen] = useState<boolean>(isAnySecondaryActive);
+
+  // Admin / moderation item
+  const showAdmin = user?.role === 'admin' || user?.role === 'expert' || user?.role === 'teacher';
+
+  const protectedPaths = ['/dictionary', '/profile', '/achievements', '/expeditions', '/shop', '/admin'];
+
+  const renderLink = (item: { to: string; labelKey: string; icon: any }) => {
+    const Icon = item.icon;
+    const label = t(item.labelKey);
+    const isProtected = protectedPaths.includes(item.to);
+
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        onClick={(e) => {
+          if (isProtected && !user) {
+            e.preventDefault();
+            openAuthModal(item.to);
+          }
+        }}
+        className={({ isActive }) =>
+          isOpen
+            ? `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                isActive
+                  ? 'bg-[#1E50A0] text-white shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`
+            : `w-11 h-11 rounded-2xl mx-auto flex items-center justify-center transition-colors group relative ${
+                isActive
+                  ? 'bg-[#1E50A0] text-white shadow-xs ring-1 ring-blue-400/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/10'
+              }`
+        }
+        title={!isOpen ? label : undefined}
+      >
+        <Icon className={`${isOpen ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+        {isOpen ? (
+          <span className="truncate">{label}</span>
+        ) : (
+          <span className="absolute left-14 bg-[#0C2340] text-white text-xs font-semibold px-2.5 py-1 rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg border border-slate-700/80 z-50">
+            {label}
+          </span>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
-    <aside className="w-56 bg-[#0C2340] min-h-screen flex-col justify-between hidden md:flex shrink-0 select-none shadow-xl z-20">
-      <div className="p-4 space-y-6">
-        {/* Brand Logo */}
-        <NavLink to="/" className="flex flex-col items-center gap-2 pt-2 group">
-          <div className="text-white group-hover:scale-105 transition-transform">
-            <BashkirOrnament className="w-10 h-10 text-white" />
-          </div>
-          <span className="font-extrabold text-sm tracking-widest text-white uppercase font-sans">
-            ЙӘНЛӘНДЕР
-          </span>
-        </NavLink>
+    <aside
+      className={`relative bg-[#0C2340] min-h-screen hidden md:flex flex-col justify-between py-4 select-none shadow-2xl z-30 transition-all duration-200 ease-in-out border-r border-[#15345b]/60 shrink-0 ${
+        isOpen ? 'w-64 px-3' : 'w-20 items-center px-2'
+      }`}
+    >
+      {/* Top Header & Navigation */}
+      <div className="flex flex-col gap-4 w-full">
+        {isOpen ? (
+          /* EXPANDED HEADER */
+          <div className="flex items-center justify-between px-2 pt-1 pb-2 border-b border-white/10">
+            <NavLink
+              to="/"
+              className="flex items-center gap-3 group"
+              title="ЙӘНЛӘНДЕР • На главную"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-white/10 group-hover:bg-white/20 flex items-center justify-center text-white transition-all shadow-xs shrink-0">
+                <BashkirOrnament className="w-6 h-6 text-white group-hover:scale-105 transition-transform" />
+              </div>
+              <div className="flex flex-col overflow-hidden">
+                <span className="font-black text-sm tracking-wider text-white uppercase font-sans whitespace-nowrap leading-tight">
+                  ЙӘНЛӘНДЕР
+                </span>
+                <span className="text-xs text-slate-400 font-medium whitespace-nowrap leading-tight">
+                  Хранители языка
+                </span>
+              </div>
+            </NavLink>
 
-        {/* Navigation list */}
-        <nav className="space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[#1E50A0] text-white shadow-md'
-                      : 'text-slate-300 hover:text-white hover:bg-white/10'
-                  }`
-                }
+            {/* СТРЕЛКА ЗАКРЫТИЯ МЕНЮ */}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              title="Свернуть меню"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          /* COLLAPSED HEADER */
+          <div className="flex flex-col items-center gap-2 w-full pt-1">
+            <NavLink
+              to="/"
+              className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all shadow-xs group"
+              title="ЙӘНЛӘНДЕР • На главную"
+            >
+              <BashkirOrnament className="w-6 h-6 text-white group-hover:scale-105 transition-transform" />
+            </NavLink>
+
+            {/* СТРЕЛКА ОТКРЫТИЯ МЕНЮ */}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="w-11 h-7 rounded-xl bg-white/10 hover:bg-[#1E50A0] text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer group shadow-xs"
+              title="Развернуть меню"
+            >
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        )}
+
+        {/* Primary Navigation items */}
+        <nav className="flex flex-col gap-1.5 w-full">
+          {primaryNavItems.map(renderLink)}
+
+          {/* "Ещё" section */}
+          {isOpen ? (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setMoreOpen(!moreOpen)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                  isAnySecondaryActive ? 'text-blue-300 bg-white/5' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </NavLink>
-            );
-          })}
+                <div className="flex items-center gap-3">
+                  <MoreHorizontal className="w-4 h-4 shrink-0" />
+                  <span>{lang === 'ba' ? 'Тағы' : 'Ещё'}</span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${moreOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {moreOpen && (
+                <div className="flex flex-col gap-1 pt-1 pl-1 space-y-1 animate-fade-in">
+                  {secondaryNavItems.map(renderLink)}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(!moreOpen)}
+                className={`w-11 h-11 rounded-2xl mx-auto flex items-center justify-center transition-colors group relative cursor-pointer ${
+                  moreOpen || isAnySecondaryActive
+                    ? 'bg-white/15 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+                title={lang === 'ba' ? 'Тағы' : 'Ещё'}
+              >
+                <MoreHorizontal className="w-5 h-5 shrink-0" />
+                <span className="absolute left-14 bg-[#0C2340] text-white text-xs font-semibold px-2.5 py-1 rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg border border-slate-700/80 z-50">
+                  {lang === 'ba' ? 'Тағы' : 'Ещё'}
+                </span>
+              </button>
+
+              {moreOpen && (
+                <div className="flex flex-col gap-1.5 pt-1.5 animate-fade-in">
+                  {secondaryNavItems.map(renderLink)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Moderation / Admin item */}
+          {showAdmin && renderLink({ to: '/admin', labelKey: 'nav_admin', icon: Settings })}
         </nav>
       </div>
 
-      {/* Bottom Mountain Graphic Callout */}
-      <div className="relative pt-4 overflow-hidden">
-        <img
-          src={sidebarMountains}
-          alt="Уральские горы"
-          className="w-full h-auto object-cover opacity-90"
-        />
-        <div className="p-4 bg-gradient-to-t from-[#0C2340] via-[#0C2340]/90 to-transparent -mt-10 relative z-10 flex items-center justify-between">
-          <div className="text-[11px] font-bold text-white leading-tight">
-            Сохраняй <br />
-            башкирский язык
-          </div>
-          <NavLink
-            to="/task"
-            className="w-7 h-7 rounded-full bg-[#1E50A0] hover:bg-[#2563EB] text-white flex items-center justify-center transition-transform hover:scale-110 shadow"
-            title="Перейти к заданию"
-          >
-            <ArrowRight className="w-3.5 h-3.5" />
-          </NavLink>
-        </div>
-      </div>
+      {/* Bottom spacer (No duplicate Treasury button) */}
+      <div className="w-full" />
     </aside>
   );
 };

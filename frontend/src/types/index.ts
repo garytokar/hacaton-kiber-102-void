@@ -27,6 +27,23 @@ export interface User {
   class_name?: string;
   created_at: string;
   stats?: UserStats;
+  cosmetics?: {
+    avatar: string;
+    equipped_frame?: string | null;
+    equipped_title?: string | null;
+    unlocked?: string[];
+  };
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: 'utility' | 'frame' | 'title' | 'lore';
+  icon: string;
+  owned: boolean;
+  equipped: boolean;
 }
 
 export interface AuthResponse {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { BashkirOrnament } from '../components/ui/BashkirOrnament';
-import { BookOpen, LogIn, Sparkles, AlertCircle } from 'lucide-react';
+import { BookOpen, LogIn, Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login, quickLogin } = useAuth();
@@ -21,8 +21,11 @@ export const LoginPage: React.FC = () => {
       await login({ email, password });
       navigate('/dashboard');
     } catch (err: any) {
-      const msg = typeof err === 'string' ? err : (err?.message && typeof err.message === 'string' ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Ошибка входа'));
-      setError(msg || 'Ошибка входа');
+      let msg = typeof err === 'string' ? err : (err?.message && typeof err.message === 'string' ? err.message : '');
+      if (!msg || msg === '[object Object]') {
+        msg = 'Неверный email или пароль. Проверьте введённые данные или используйте кнопки быстрого входа ниже.';
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -35,16 +38,30 @@ export const LoginPage: React.FC = () => {
       await quickLogin(demoEmail);
       navigate('/dashboard');
     } catch (err: any) {
-      const msg = typeof err === 'string' ? err : (err?.message && typeof err.message === 'string' ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Ошибка демо-входа'));
-      setError(msg || 'Ошибка демо-входа');
+      let msg = typeof err === 'string' ? err : (err?.message && typeof err.message === 'string' ? err.message : '');
+      if (!msg || msg === '[object Object]') {
+        msg = 'Ошибка демо-входа. Пожалуйста, попробуйте снова.';
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-140px)] flex items-center justify-center p-4 select-none">
+    <div className="min-h-screen py-10 flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md max-w-md w-full p-8 space-y-6">
+        {/* Link back to Home */}
+        <div className="flex items-center justify-between pb-1">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#0C2340] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>На главную</span>
+          </Link>
+        </div>
+
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-2xl bg-[#0C2340] flex items-center justify-center text-white mx-auto shadow-sm">
             <BashkirOrnament className="w-8 h-8 text-white" />
@@ -64,33 +81,37 @@ export const LoginPage: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Электронная почта
+            </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@example.ru"
-              className="w-full px-4 py-2.5 rounded-full bg-[#F1F5F9] border-none text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1E50A0] text-sm"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#1E50A0]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Пароль</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Пароль
+            </label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-2.5 rounded-full bg-[#F1F5F9] border-none text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1E50A0] text-sm"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#1E50A0]"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-full bg-[#0C2340] hover:bg-[#1A4480] text-white font-bold text-xs sm:text-sm shadow-md transition-colors disabled:opacity-50"
+            className="w-full py-3 rounded-full bg-[#0C2340] hover:bg-[#1A4480] text-white text-xs font-bold transition-all shadow-md disabled:opacity-50"
           >
             {loading ? 'Вход...' : 'Войти'}
           </button>
@@ -98,30 +119,30 @@ export const LoginPage: React.FC = () => {
 
         {/* Quick Demo Logins for Hackathon Judges */}
         <div className="pt-4 border-t border-slate-100">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2.5 flex items-center justify-center gap-1">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-center mb-2.5 flex items-center justify-center gap-1">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Быстрый вход для жюри и тестов:</span>
+            <span>Быстрый вход для тестов:</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-xs">
             <button
               type="button"
               onClick={() => handleQuickLogin('student_timur@yanlander.ru')}
-              className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 hover:text-[#1E50A0] text-center font-bold transition-colors"
+              className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 hover:text-[#1E50A0] text-center font-bold transition-colors cursor-pointer"
             >
               Ученик
             </button>
             <button
               type="button"
               onClick={() => handleQuickLogin('teacher_aygul@yanlander.ru')}
-              className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 hover:text-[#1E50A0] text-center font-bold transition-colors"
+              className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 hover:text-[#1E50A0] text-center font-bold transition-colors cursor-pointer"
             >
               Учитель
             </button>
             <button
               type="button"
               onClick={() => handleQuickLogin('expert@yanlander.ru')}
-              className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 hover:text-[#1E50A0] text-center font-bold transition-colors"
+              className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-slate-700 hover:text-[#1E50A0] text-center font-bold transition-colors cursor-pointer"
             >
               Эксперт
             </button>

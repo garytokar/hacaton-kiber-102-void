@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: bashkir_pg
+    container_name: yanlander_postgres
     environment:
       POSTGRES_USER: ${PG_USER:-postgres}
       POSTGRES_PASSWORD: ${PG_PASSWORD:-secret}
@@ -11,33 +11,38 @@ services:
     ports:
       - "5432:5432"
     restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: bashkir_redis
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: bashkir_backend
-    env_file:
-      - .env
+    container_name: yanlander_backend
     environment:
       PORT: "8000"
-      DATABASE_URL: "postgres://${PG_USER:-postgres}:${PG_PASSWORD:-secret}@postgres:5432/${PG_DB:-bashkir_school}?sslmode=disable"
-      REDIS_URL: "redis://redis:6379/0"
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      BOT_MODE: ${BOT_MODE:-polling}
-      JWT_SECRET: ${JWT_SECRET:-bashkir-school-hackathon-jwt-secret-2026}
+      DATABASE_URL: "postgresql+psycopg://${PG_USER:-postgres}:${PG_PASSWORD:-secret}@postgres:5432/${PG_DB:-bashkir_school}"
+      SECRET_KEY: ${SECRET_KEY:-yanlander-super-secret-key-bashkir-preservation-2026}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: yanlander_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
     restart: unless-stopped
 
 volumes:

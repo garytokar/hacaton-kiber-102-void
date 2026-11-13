@@ -2,7 +2,7 @@ import {
   AuthResponse, User, Fragment, Translation, Achievement, DailyQuest,
   WeeklyExpedition, LeaderboardUser, TeamLeaderboardEntry, SchoolLeaderboardEntry,
   DictionaryEntry, TaskSubmissionResult, PublicStats, ActivityPoint, SchoolOption,
-  AdminReviewItem
+  AdminReviewItem, ShopItem
 } from '../types';
 
 const BASE_URL = '/api';
@@ -57,6 +57,10 @@ export const api = {
   getUserActivity: () => request<ActivityPoint[]>('/users/me/activity'),
   protectStreak: () => request<{ success: boolean; message: string; currency: number }>('/users/me/protect-streak', { method: 'POST' }),
   getSchools: () => request<SchoolOption[]>('/users/schools'),
+  getMyTeam: () => request<any>('/users/me/team'),
+  getShopItems: () => request<{ items: ShopItem[]; currency: number; cosmetics: any }>('/users/me/shop/items'),
+  buyShopItem: (itemId: string) => request<{ success: boolean; message: string; currency: number; cosmetics: any; user: User }>('/users/me/shop/buy', { method: 'POST', body: JSON.stringify({ item_id: itemId }) }),
+  equipShopItem: (itemId: string, category: string = 'frame') => request<{ success: boolean; cosmetics: any; user: User }>('/users/me/shop/equip', { method: 'POST', body: JSON.stringify({ item_id: itemId, category }) }),
 
   // Fragments & Daily Task
   getDailyFragment: () => request<Fragment>('/fragments/daily'),
@@ -103,6 +107,7 @@ export const api = {
 
   // Stats & Treasury
   getPublicStats: () => request<PublicStats>('/stats/overview'),
+  getPlatformAnalytics: () => request<any>('/stats/analytics'),
   getTreasury: (params?: { search?: string; category?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.search) searchParams.append('search', params.search);
@@ -122,5 +127,8 @@ export const api = {
   rejectTranslation: (id: number, reason?: string) =>
     request<{ success: boolean; message: string }>(`/admin/review/${id}/reject${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`, { method: 'POST' }),
   addFragmentAdmin: (data: any) => request<{ success: boolean; id: number; message: string }>('/admin/fragments', { method: 'POST', body: JSON.stringify(data) }),
+  getAdminFragments: (category?: string) => request<any[]>(`/admin/fragments${category ? `?category=${encodeURIComponent(category)}` : ''}`),
+  deleteAdminFragment: (id: number) => request<{ success: boolean; message: string }>(`/admin/fragments/${id}`, { method: 'DELETE' }),
+  createAdminSchool: (data: { name: string; city: string; class_names: string[] }) => request<{ success: boolean; message: string }>('/admin/schools', { method: 'POST', body: JSON.stringify(data) }),
   getAdminStats: () => request<any>('/admin/stats'),
 };

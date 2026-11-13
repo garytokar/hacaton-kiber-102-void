@@ -29,6 +29,21 @@ desktop.ini
 *.swo
 *~
 
+# Python virtualenvs & cache
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.db
+*.sqlite3
+_legacy/
+backend/_legacy/
+*_tz.*
+*original_prompt*
+
 # Frontend dependencies and builds (if placed inside repo)
 node_modules/
 dist/

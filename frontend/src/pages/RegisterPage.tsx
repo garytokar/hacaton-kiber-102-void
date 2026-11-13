@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { SchoolOption } from '../types';
 import { BashkirOrnament } from '../components/ui/BashkirOrnament';
-import { UserPlus, AlertCircle } from 'lucide-react';
+import { UserPlus, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const { register } = useAuth();
@@ -43,15 +43,29 @@ export const RegisterPage: React.FC = () => {
       });
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Ошибка регистрации');
+      let msg = typeof err === 'string' ? err : (err?.message && typeof err.message === 'string' ? err.message : '');
+      if (!msg || msg === '[object Object]') {
+        msg = 'Ошибка регистрации. Проверьте правильность заполнения полей.';
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-140px)] flex items-center justify-center p-4 select-none">
+    <div className="min-h-screen py-10 flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md max-w-lg w-full p-8 space-y-6">
+        {/* Link back to Home */}
+        <div className="flex items-center justify-between pb-1">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#0C2340] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>На главную</span>
+          </Link>
+        </div>
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-2xl bg-[#0C2340] flex items-center justify-center text-white mx-auto shadow-sm">
             <BashkirOrnament className="w-8 h-8 text-white" />

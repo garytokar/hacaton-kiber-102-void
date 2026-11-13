@@ -10,6 +10,14 @@ interface AuthContextType {
   logout: () => void;
   refreshUser: () => Promise<void>;
   quickLogin: (email: string) => Promise<void>;
+
+  // Global Auth Modal state
+  authModalOpen: boolean;
+  authModalTab: 'login' | 'register';
+  authRedirectPath: string | null;
+  openAuthModal: (redirectPath?: string, tab?: 'login' | 'register') => void;
+  closeAuthModal: () => void;
+  setAuthModalTab: (tab: 'login' | 'register') => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +25,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Auth Modal State
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [authRedirectPath, setAuthRedirectPath] = useState<string | null>(null);
+
+  const openAuthModal = (redirectPath?: string, tab: 'login' | 'register' = 'login') => {
+    setAuthRedirectPath(redirectPath || null);
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setAuthModalOpen(false);
+  };
 
   const refreshUser = async () => {
     try {
@@ -61,7 +84,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser, quickLogin }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        refreshUser,
+        quickLogin,
+        authModalOpen,
+        authModalTab,
+        authRedirectPath,
+        openAuthModal,
+        closeAuthModal,
+        setAuthModalTab,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
