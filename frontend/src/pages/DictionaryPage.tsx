@@ -69,7 +69,7 @@ export const DictionaryPage: React.FC = () => {
     try {
       await api.toggleFavoriteWord(id);
       loadDictionary();
-      showToast('Статус избранного обновлён ⭐', 'success');
+      showToast('Статус избранного обновлён', 'success');
     } catch (err) {
       console.error(err);
     }
@@ -100,7 +100,7 @@ export const DictionaryPage: React.FC = () => {
       setNewTranslation('');
       setNewContext('');
       loadDictionary();
-      showToast(`Слово «${addedWord}» успешно добавлено в словарь! 🎉`, 'success');
+      showToast(`Слово «${addedWord}» успешно добавлено в словарь`, 'success');
     } catch (err: any) {
       showToast(err.message || 'Ошибка добавления слова', 'error');
     }
@@ -118,7 +118,7 @@ export const DictionaryPage: React.FC = () => {
         origin: { y: 0.6 },
         colors: ['#0C2340', '#1E50A0', '#F59E0B', '#10B981'],
       });
-      showToast(`Тренировка завершена! Вы повторили ${entries.length} карточек 🎉`, 'success');
+      showToast(`Тренировка завершена! Вы повторили ${entries.length} карточек`, 'success');
       setIsTrainerOpen(false);
       setTrainerIndex(0);
       setIsFlipped(false);
@@ -141,10 +141,10 @@ export const DictionaryPage: React.FC = () => {
       )}
 
       {/* Header Banner */}
-      <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700/50">
+      <div className="yan-page-hero bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700/50">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur mb-2 border border-blue-400/30">
-            <BookA className="w-3.5 h-3.5 text-amber-400" />
+            <BookA className="w-3.5 h-3.5 text-[#7AB6F4]" />
             <span>Персональный лексикон</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
@@ -369,13 +369,15 @@ export const DictionaryPage: React.FC = () => {
                 onClick={() => handleNextTrainerCard(false)}
                 className="py-3 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs border border-amber-200/80 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <span>🔴 Повторить</span>
+                <RotateCw className="h-4 w-4" />
+                <span>Повторить</span>
               </button>
               <button
                 onClick={() => handleNextTrainerCard(true)}
                 className="py-3 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200/80 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <span>🟢 Знаю</span>
+                <Check className="h-4 w-4" />
+                <span>Знаю</span>
               </button>
             </div>
           </div>

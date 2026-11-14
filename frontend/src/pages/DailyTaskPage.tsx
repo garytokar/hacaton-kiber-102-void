@@ -114,7 +114,7 @@ export const DailyTaskPage: React.FC = () => {
       await refreshUser();
       const updated = await api.getFragmentById(fragment.id);
       setFragment(updated);
-      showToast('Перевод отправлен на голосование! 🎉', 'success');
+      showToast('Перевод отправлен на голосование', 'success');
     } catch (err: any) {
       showToast(err.message || 'Ошибка отправки перевода', 'error');
     } finally {
@@ -393,7 +393,7 @@ export const DailyTaskPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="text-xs text-slate-500 flex items-center gap-1">
-                      <span>💡</span>
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#3787E4]" />
                       <span>
                         Ещё {Math.max(1, 3 - primaryTranslation.votes_count)} голос(а) до переноса в Сокровищницу
                       </span>

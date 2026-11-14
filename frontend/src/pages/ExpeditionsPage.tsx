@@ -49,7 +49,7 @@ export const ExpeditionsPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Header Banner */}
-      <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md border border-slate-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="yan-page-hero bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md border border-slate-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur mb-2 border border-blue-400/30">
             <Users className="w-3.5 h-3.5 text-amber-400" />
@@ -97,8 +97,8 @@ export const ExpeditionsPage: React.FC = () => {
               <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-[#0C2340] text-white flex items-center justify-center shadow-md shrink-0">
-                      <School className="w-7 h-7 text-white" />
+                    <div className="w-14 h-14 rounded-2xl bg-[#EAF3FF] text-[#5E9BE0] flex items-center justify-center shrink-0">
+                      <School className="w-7 h-7 text-[#5E9BE0]" />
                     </div>
                     <div>
                       <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#1E50A0] uppercase tracking-wider">

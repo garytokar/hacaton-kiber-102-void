@@ -2,17 +2,17 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
-import { Home, BookOpen, Gem, User } from 'lucide-react';
+import { PanelsTopLeft, Languages, Archive, CircleUserRound } from 'lucide-react';
 
 export const MobileNav: React.FC = () => {
   const { user, openAuthModal } = useAuth();
   const { t } = useLang();
 
   const items = [
-    { to: '/', label: t('nav_home'), icon: Home, protected: false },
-    { to: '/task', label: t('nav_tasks'), icon: BookOpen, protected: false },
-    { to: '/treasury', label: t('nav_treasury'), icon: Gem, protected: false },
-    { to: '/profile', label: t('nav_profile'), icon: User, protected: true },
+    { to: '/', label: t('nav_home'), icon: PanelsTopLeft, protected: false },
+    { to: '/task', label: t('nav_tasks'), icon: Languages, protected: false },
+    { to: '/treasury', label: t('nav_treasury'), icon: Archive, protected: false },
+    { to: '/profile', label: t('nav_profile'), icon: CircleUserRound, protected: true },
   ];
 
   return (

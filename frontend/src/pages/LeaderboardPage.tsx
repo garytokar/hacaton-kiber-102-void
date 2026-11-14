@@ -40,7 +40,7 @@ export const LeaderboardPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Banner */}
-      <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md border border-slate-700/50">
+      <div className="yan-page-hero bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md border border-slate-700/50">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur mb-2 border border-blue-400/30">
           <Trophy className="w-3.5 h-3.5 text-amber-400" />
           <span>Зал славы Хранителей</span>
@@ -131,19 +131,15 @@ export const LeaderboardPage: React.FC = () => {
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     {/* Rank Medal */}
                     <div className="w-8 text-center shrink-0">
-                      {u.rank === 1 ? (
-                        <span className="text-xl">🥇</span>
-                      ) : u.rank === 2 ? (
-                        <span className="text-xl">🥈</span>
-                      ) : u.rank === 3 ? (
-                        <span className="text-xl">🥉</span>
+                      {u.rank <= 3 ? (
+                        <Medal className={`mx-auto h-5 w-5 ${u.rank === 1 ? 'text-amber-500' : u.rank === 2 ? 'text-slate-400' : 'text-orange-600'}`} aria-label={`Место ${u.rank}`} />
                       ) : (
                         <span className="text-xs font-bold text-slate-400">#{u.rank}</span>
                       )}
                     </div>
 
                     {/* Avatar / Initials */}
-                    <div className="w-10 h-10 rounded-full bg-[#0C2340] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-[#EAF3FF] text-[#5E9BE0] flex items-center justify-center font-bold text-xs shrink-0">
                       {u.full_name?.slice(0, 2) || u.username.slice(0, 2).toUpperCase()}
                     </div>
 
@@ -168,8 +164,8 @@ export const LeaderboardPage: React.FC = () => {
                   {/* Right: XP / Score */}
                   <div className="flex items-center gap-4 shrink-0">
                     {u.streak > 0 && (
-                      <div className="hidden sm:flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
-                        <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                      <div className="hidden sm:flex items-center gap-1 text-xs font-bold text-[#5E9BE0] bg-[#EFF6FF] px-2.5 py-1 rounded-full">
+                        <Flame className="w-3.5 h-3.5 text-[#5E9BE0]" />
                         <span>{u.streak} дн.</span>
                       </div>
                     )}
@@ -196,7 +192,7 @@ export const LeaderboardPage: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 text-center shrink-0">
-                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                    {idx < 3 ? <Medal className={`mx-auto h-5 w-5 ${idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : 'text-orange-600'}`} aria-label={`Место ${idx + 1}`} /> : `#${idx + 1}`}
                   </div>
                   <div className="w-10 h-10 rounded-2xl bg-blue-100 text-[#1E50A0] flex items-center justify-center font-bold text-sm shrink-0">
                     <School className="w-5 h-5" />
@@ -223,7 +219,7 @@ export const LeaderboardPage: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 text-center shrink-0">
-                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                    {idx < 3 ? <Medal className={`mx-auto h-5 w-5 ${idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : 'text-orange-600'}`} aria-label={`Место ${idx + 1}`} /> : `#${idx + 1}`}
                   </div>
                   <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-[#0C2340] flex items-center justify-center font-bold text-sm shrink-0">
                     <Users className="w-5 h-5" />

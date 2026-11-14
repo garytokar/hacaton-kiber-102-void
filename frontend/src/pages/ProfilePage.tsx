@@ -121,16 +121,16 @@ export const ProfilePage: React.FC = () => {
 
           <div className="p-3.5 rounded-2xl bg-[#F8FAFC]">
             <span className="text-[11px] font-bold text-slate-400 uppercase">Серия активности</span>
-            <div className="text-base sm:text-lg font-black text-amber-600 mt-0.5 flex items-center gap-1">
-              <Flame className="w-4 h-4 fill-amber-500" />
+            <div className="text-base sm:text-lg font-black text-[#5E9BE0] mt-0.5 flex items-center gap-1">
+              <Flame className="w-4 h-4 text-[#5E9BE0]" />
               <span>{stats?.current_streak || 0} дн.</span>
             </div>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-[#F8FAFC]">
             <span className="text-[11px] font-bold text-slate-400 uppercase">Баланс Ҡурай</span>
-            <div className="text-base sm:text-lg font-black text-amber-600 mt-0.5 flex items-center gap-1">
-              <Coins className="w-4 h-4 fill-amber-500" />
+            <div className="text-base sm:text-lg font-black text-[#5E9BE0] mt-0.5 flex items-center gap-1">
+              <Coins className="w-4 h-4 text-[#5E9BE0]" />
               <span>{stats?.currency || 0}</span>
             </div>
           </div>
@@ -229,8 +229,8 @@ export const ProfilePage: React.FC = () => {
                   : count <= 2
                   ? 'bg-[#EEF2FF]'
                   : count <= 5
-                  ? 'bg-[#1E50A0]'
-                  : 'bg-[#0C2340]';
+                  ? 'bg-[#8BBBF2]'
+                  : 'bg-[#397FC8]';
 
               return (
                 <div
@@ -249,8 +249,8 @@ export const ProfilePage: React.FC = () => {
             <span>Меньше</span>
             <div className="w-3 h-3 rounded-xs bg-slate-100" />
             <div className="w-3 h-3 rounded-xs bg-[#EEF2FF]" />
-            <div className="w-3 h-3 rounded-xs bg-[#1E50A0]" />
-            <div className="w-3 h-3 rounded-xs bg-[#0C2340]" />
+            <div className="w-3 h-3 rounded-xs bg-[#8BBBF2]" />
+            <div className="w-3 h-3 rounded-xs bg-[#397FC8]" />
             <span>Больше</span>
           </div>
         </div>

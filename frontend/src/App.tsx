@@ -59,7 +59,7 @@ const AppLayout: React.FC = () => {
   // 1. Auth pages: standalone centered view on #F4F6F9 without Sidebar or Navbar
   if (isAuthPage) {
     return (
-      <div className="min-h-screen bg-[#F4F6F9] text-[#0C2340] font-sans antialiased flex flex-col justify-center">
+      <div className="min-h-screen bg-[#F5F8FD] text-[#1C2D4B] font-sans antialiased flex flex-col justify-center">
         <main className="w-full">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -73,7 +73,7 @@ const AppLayout: React.FC = () => {
   // 2. Landing / About page: standalone full-width presentation page
   if (isAboutPage) {
     return (
-      <div className="min-h-screen bg-white text-[#0C2340] font-sans antialiased">
+      <div className="min-h-screen bg-white text-[#1C2D4B] font-sans antialiased">
         <Routes>
           <Route path="/about" element={<LandingPage />} />
         </Routes>
@@ -83,13 +83,13 @@ const AppLayout: React.FC = () => {
 
   // 3. Platform screens: deep navy sidebar + static navbar + bottom-padded main for mobile dock
   return (
-    <div className="min-h-screen flex bg-[#F4F6F9] text-[#0C2340] font-sans antialiased">
+    <div className="min-h-screen flex bg-[#F5F8FD] text-[#1C2D4B] font-sans antialiased">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar />
 
-        <main className="flex-1 p-3 sm:p-5 lg:p-6 max-w-[1400px] w-full mx-auto pb-24 md:pb-6">
+        <main className="flex-1 p-3 sm:p-5 lg:p-7 max-w-[1400px] w-full mx-auto pb-24 md:pb-6">
           <Routes>
             {/* The root path / directly renders the dashboard */}
             <Route path="/" element={<DashboardPage />} />

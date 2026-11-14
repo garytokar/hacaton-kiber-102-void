@@ -19,7 +19,7 @@ export const AchievementsPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Banner */}
-      <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700/50">
+      <div className="yan-page-hero bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700/50">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur mb-2 border border-blue-400/30">
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
@@ -33,7 +33,7 @@ export const AchievementsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur px-5 py-3 rounded-2xl border border-white/20 text-center shrink-0">
+        <div className="yan-hero-count bg-white/10 backdrop-blur px-5 py-3 rounded-2xl border border-white/20 text-center shrink-0">
           <div className="text-2xl font-black text-amber-400">
             {unlockedCount} / {achievements.length}
           </div>
@@ -96,12 +96,12 @@ export const AchievementsPage: React.FC = () => {
                   <div
                     className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-sm ${
                       ach.unlocked
-                        ? 'bg-[#0C2340]'
+                        ? 'bg-[#EAF3FF]'
                         : 'bg-slate-300'
                     }`}
                   >
                     {ach.unlocked ? (
-                      <Trophy className="w-6 h-6 text-amber-400" />
+                      <Trophy className="w-6 h-6 text-[#3787E4]" />
                     ) : (
                       <Lock className="w-5 h-5 text-slate-500" />
                     )}

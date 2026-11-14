@@ -120,7 +120,7 @@ export const ShopPage: React.FC = () => {
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-16">
       {/* Header Banner */}
-      <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-slate-700/50">
+      <div className="yan-page-hero bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-slate-700/50">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur border border-blue-400/30">
             <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
@@ -135,18 +135,18 @@ export const ShopPage: React.FC = () => {
         </div>
 
         {/* Currency & Live Avatar Preview */}
-        <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/15">
+        <div className="yan-balance-panel flex items-center gap-4 bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/15">
           <UserAvatar user={user} size="lg" />
           <div>
             <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
               Ваш баланс
             </div>
             <div className="flex items-center gap-1.5 text-xl font-black text-amber-300">
-              <Coins className="w-5 h-5 text-amber-400 animate-pulse" />
+              <Coins className="w-5 h-5 text-amber-500" />
               <span>{currency} Ҡурай</span>
             </div>
             <div className="text-[10px] text-slate-300">
-              {user?.stats?.streak_protected ? '🛡️ Защита стрика активна' : 'Серия без защиты'}
+              {user?.stats?.streak_protected ? 'Защита серии активна' : 'Серия без защиты'}
             </div>
           </div>
         </div>

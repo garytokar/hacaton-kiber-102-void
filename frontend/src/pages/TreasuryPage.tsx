@@ -63,7 +63,7 @@ export const TreasuryPage: React.FC = () => {
   const handleCopy = (id: number, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    showToast('Текст скопирован в буфер обмена! 📋', 'success');
+    showToast('Текст скопирован в буфер обмена', 'success');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -85,7 +85,7 @@ export const TreasuryPage: React.FC = () => {
         difficulty: item.difficulty,
       });
       setSavedIds((prev) => [...prev, item.id]);
-      showToast('Фрагмент успешно добавлен в ваш словарь! 📖', 'success');
+      showToast('Фрагмент добавлен в ваш словарь', 'success');
     } catch (err: any) {
       showToast(err.message || 'Ошибка добавления', 'error');
     }
@@ -104,7 +104,7 @@ export const TreasuryPage: React.FC = () => {
       )}
 
       {/* Header Banner */}
-      <div className="bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700/50">
+      <div className="yan-page-hero bg-[#0C2340] rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-700/50">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E50A0]/60 text-xs font-semibold backdrop-blur mb-2 border border-blue-400/30">
             <Gem className="w-3.5 h-3.5 text-amber-400" />

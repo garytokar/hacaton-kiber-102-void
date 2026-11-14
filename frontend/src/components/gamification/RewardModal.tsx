@@ -37,7 +37,7 @@ export const RewardModal: React.FC<RewardModalProps> = ({ result, onClose, onNex
 
         {/* Header */}
         <h3 className="text-xl font-extrabold text-[#0C2340] mb-1">
-          {result.level_up ? '🎊 Новый уровень Хранителя!' : 'Отличный вклад в язык!'}
+          {result.level_up ? 'Новый уровень Хранителя!' : 'Отличный вклад в язык!'}
         </h3>
         <p className="text-xs text-slate-500 mb-6">{result.message}</p>
 
@@ -52,7 +52,7 @@ export const RewardModal: React.FC<RewardModalProps> = ({ result, onClose, onNex
           </div>
 
           <div className="bg-[#FFFBEB] border border-amber-200 p-3 rounded-2xl flex items-center justify-center gap-2">
-            <Coins className="w-5 h-5 text-amber-500 fill-amber-500" />
+            <Coins className="w-5 h-5 text-amber-500" />
             <div className="text-left">
               <span className="block text-xs text-slate-500 font-medium">Валюта</span>
               <span className="text-base font-extrabold text-amber-600">+{result.currency_awarded} Ҡурай</span>
@@ -63,7 +63,7 @@ export const RewardModal: React.FC<RewardModalProps> = ({ result, onClose, onNex
         {/* Streak notification */}
         {result.streak_updated && (
           <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl mb-4 flex items-center justify-center gap-2 text-amber-800 text-xs font-semibold">
-            <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
+            <Flame className="w-4 h-4 text-amber-500" />
             <span>Серия активности увеличена: {result.current_streak} дн.!</span>
           </div>
         )}

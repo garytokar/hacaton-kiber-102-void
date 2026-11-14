@@ -4,17 +4,17 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
 import { BashkirOrnament } from '../ui/BashkirOrnament';
 import {
-  Home,
-  BookOpen,
-  Gem,
-  BookA,
-  User as UserIcon,
-  Trophy,
-  Award,
-  Users,
-  BarChart2,
-  ShoppingBag,
-  Settings,
+  PanelsTopLeft,
+  Languages,
+  Archive,
+  LibraryBig,
+  CircleUserRound,
+  Medal,
+  Sparkles,
+  Compass,
+  ChartNoAxesCombined,
+  Store,
+  ShieldCheck,
   ChevronRight,
   ChevronLeft,
   ChevronDown,
@@ -33,9 +33,9 @@ export const Sidebar: React.FC = () => {
       if (saved !== null) {
         return saved === 'true';
       }
-      return false;
+      return true;
     } catch {
-      return false;
+      return true;
     }
   });
 
@@ -51,20 +51,20 @@ export const Sidebar: React.FC = () => {
 
   // 1. Primary items in first row: Home, Practice, Treasury, Dictionary, Profile
   const primaryNavItems = [
-    { to: '/', labelKey: 'nav_home', icon: Home },
-    { to: '/task', labelKey: 'nav_tasks', icon: BookOpen },
-    { to: '/treasury', labelKey: 'nav_treasury', icon: Gem },
-    { to: '/dictionary', labelKey: 'nav_dictionary', icon: BookA },
-    { to: '/profile', labelKey: 'nav_profile', icon: UserIcon },
+    { to: '/', labelKey: 'nav_home', icon: PanelsTopLeft },
+    { to: '/task', labelKey: 'nav_tasks', icon: Languages },
+    { to: '/treasury', labelKey: 'nav_treasury', icon: Archive },
+    { to: '/dictionary', labelKey: 'nav_dictionary', icon: LibraryBig },
+    { to: '/profile', labelKey: 'nav_profile', icon: CircleUserRound },
   ];
 
   // 2. Secondary items in "Ещё" (collapsed by default): Leaderboard, Achievements, Expeditions, Analytics, Shop
   const secondaryNavItems = [
-    { to: '/leaderboard', labelKey: 'nav_leaderboard', icon: Trophy },
-    { to: '/achievements', labelKey: 'nav_achievements', icon: Award },
-    { to: '/expeditions', labelKey: 'nav_team', icon: Users },
-    { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart2 },
-    { to: '/shop', labelKey: 'nav_shop', icon: ShoppingBag },
+    { to: '/leaderboard', labelKey: 'nav_leaderboard', icon: Medal },
+    { to: '/achievements', labelKey: 'nav_achievements', icon: Sparkles },
+    { to: '/expeditions', labelKey: 'nav_team', icon: Compass },
+    { to: '/analytics', labelKey: 'nav_analytics', icon: ChartNoAxesCombined },
+    { to: '/shop', labelKey: 'nav_shop', icon: Store },
   ];
 
   const isAnySecondaryActive = secondaryNavItems.some((item) => location.pathname === item.to);
@@ -233,7 +233,7 @@ export const Sidebar: React.FC = () => {
           )}
 
           {/* Moderation / Admin item */}
-          {showAdmin && renderLink({ to: '/admin', labelKey: 'nav_admin', icon: Settings })}
+          {showAdmin && renderLink({ to: '/admin', labelKey: 'nav_admin', icon: ShieldCheck })}
         </nav>
       </div>
 
